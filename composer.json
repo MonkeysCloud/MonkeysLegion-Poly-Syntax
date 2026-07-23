@@ -1,0 +1,18 @@
+{
+    "name": "monkeyscloud/monkeyslegion-poly-syntax",
+    "description": "lightweight, extensible PHP package designed to perform high-performance, bidirectional transformations between modern data representation formats (JSON, YAML, TOML, XML, CSV, and custom structures).",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Monkeyslegion\\PolySyntax\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Monkeyslegion\\PolySyntax\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {}
+}
