@@ -24,6 +24,12 @@
         "issues": "https://github.com/monkeyscloud/monkeyslegion-poly-syntax/issues",
         "source": "https://github.com/monkeyscloud/monkeyslegion-poly-syntax"
     },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/monkeyscloud"
+        }
+    ],
     "require": {
         "php": ">=8.4"
     },

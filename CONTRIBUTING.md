@@ -68,7 +68,7 @@ composer check
 This runs:
 
 1. `composer cs-check` — PSR-12 code style
-2. `composer analyse` — PHPStan Level 8 static analysis
+2. `composer analyse` — PHPStan Level 9 static analysis
 3. `composer test` — PHPUnit test suite
 
 ---
@@ -80,7 +80,7 @@ This runs:
 | **PHP Version** | 8.4+ only |
 | **Code Style** | [PSR-12](https://www.php-fig.org/psr/psr-12/) |
 | **Autoloading** | [PSR-4](https://www.php-fig.org/psr/psr-4/) |
-| **Static Analysis** | PHPStan Level 8 |
+| **Static Analysis** | PHPStan Level 9 |
 | **Testing** | PHPUnit 11.x |
 | **Type System** | Strict types everywhere, native PHP 8.4 features preferred |
 
@@ -214,7 +214,7 @@ If an external library is unavoidable, it must be:
 
 ## Static Analysis
 
-We enforce **PHPStan Level 8** — no exceptions. Run before submitting:
+We enforce **PHPStan Level 9** — no exceptions. Run before submitting:
 
 ```bash
 composer analyse

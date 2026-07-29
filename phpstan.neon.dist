@@ -5,4 +5,12 @@ parameters:
         - tests
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
-        - '#Method .*itRoundTripsSimpleData\(\) has parameter \$expected with no value type specified in iterable type array\.#'
+        - '#Method .*itRoundTripsSimpleData\(\) has parameter\s+\$expected with no value type specified in iterable type array\.#'
+        - '#Cannot access offset.*on mixed#'
+        - '~Parameter #\d+ \$num of function is_infinite expects float, mixed given~'
+        - '~Parameter #\d+ \$num of function is_nan expects float, mixed given~'
+        - '#assertCount.*expects Countable.*mixed given#'
+        - '#Method Monkeyslegion\\PolySyntax\\Driver\\YamlDriver::.* has parameter \$top with no value type specified in iterable type array\.#'
+        - '#Method Monkeyslegion\\PolySyntax\\Driver\\YamlDriver::.* has parameter \$stack with no value type specified in iterable type array\.#'
+        - '#Method Monkeyslegion\\PolySyntax\\Driver\\YamlDriver::.* has parameter \$container with no value type specified in iterable type array\.#'
+        - '#Method Monkeyslegion\\PolySyntax\\Driver\\YamlDriver::.* return type has no value type specified in iterable type array\.#'

@@ -6,7 +6,9 @@ namespace Monkeyslegion\PolySyntax\Tests;
 
 use Monkeyslegion\PolySyntax\Driver\CsvDriver;
 use Monkeyslegion\PolySyntax\Driver\JsonDriver;
+use Monkeyslegion\PolySyntax\Driver\TomlDriver;
 use Monkeyslegion\PolySyntax\Driver\XmlDriver;
+use Monkeyslegion\PolySyntax\Driver\YamlDriver;
 use Monkeyslegion\PolySyntax\Enum\Syntax;
 use Monkeyslegion\PolySyntax\Transformer;
 use PHPUnit\Framework\Attributes\Test;
@@ -25,7 +27,9 @@ final class IntegrationTest extends TestCase
         $this->transformer
             ->registerDriver(new JsonDriver())
             ->registerDriver(new XmlDriver())
-            ->registerDriver(new CsvDriver());
+            ->registerDriver(new CsvDriver())
+            ->registerDriver(new TomlDriver())
+            ->registerDriver(new YamlDriver());
     }
 
     // ─── JSON ↔ XML ────────────────────────────────────────────────
@@ -100,14 +104,68 @@ final class IntegrationTest extends TestCase
         self::assertSame($csv, $back);
     }
 
-    // ─── All Three Drivers Registered ──────────────────────────────
+    // ─── TOML Integration ─────────────────────────────────────────
 
     #[Test]
-    public function itSupportsAllThreeFormats(): void
+    public function itTransformsTomlToJson(): void
+    {
+        $toml = <<<'TOML'
+title = "Example"
+count = 42
+TOML;
+        $json = $this->transformer->transform($toml, Syntax::TOML, Syntax::JSON);
+
+        self::assertJson($json);
+        self::assertStringContainsString('"Example"', $json);
+        self::assertStringContainsString('42', $json);
+    }
+
+    #[Test]
+    public function itTransformsJsonToToml(): void
+    {
+        $json = '{"name":"Alice","score":95}';
+        $toml = $this->transformer->transform($json, Syntax::JSON, Syntax::TOML);
+
+        self::assertStringContainsString('name = "Alice"', $toml);
+        self::assertStringContainsString('score = 95', $toml);
+    }
+
+    // ─── YAML Integration ─────────────────────────────────────────
+
+    #[Test]
+    public function itTransformsYamlToJson(): void
+    {
+        $yaml = <<<'YAML'
+name: Alice
+score: 95
+YAML;
+        $json = $this->transformer->transform($yaml, Syntax::YAML, Syntax::JSON);
+
+        self::assertJson($json);
+        self::assertStringContainsString('"Alice"', $json);
+        self::assertStringContainsString('95', $json);
+    }
+
+    #[Test]
+    public function itTransformsJsonToYaml(): void
+    {
+        $json = '{"name":"Bob","role":"admin"}';
+        $yaml = $this->transformer->transform($json, Syntax::JSON, Syntax::YAML);
+
+        self::assertStringContainsString('name: Bob', $yaml);
+        self::assertStringContainsString('role: admin', $yaml);
+    }
+
+    // ─── All Five Drivers Registered ──────────────────────────────
+
+    #[Test]
+    public function itSupportsAllFiveFormats(): void
     {
         self::assertTrue($this->transformer->supports(Syntax::JSON));
         self::assertTrue($this->transformer->supports(Syntax::XML));
         self::assertTrue($this->transformer->supports(Syntax::CSV));
-        self::assertCount(3, $this->transformer->supportedSyntaxes());
+        self::assertTrue($this->transformer->supports(Syntax::TOML));
+        self::assertTrue($this->transformer->supports(Syntax::YAML));
+        self::assertCount(5, $this->transformer->supportedSyntaxes());
     }
 }

@@ -44,7 +44,7 @@ jobs:
       - name: Check code style (PSR-12)
         run: composer cs-check
 
-      - name: Static analysis (PHPStan Level 8)
+      - name: Static analysis (PHPStan Level 9)
         run: composer analyse
 
       - name: Run tests

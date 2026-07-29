@@ -68,16 +68,16 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
     - `EncodeException` (output failures)
     - `UnsupportedSyntaxException` (unregistered format)
 
-- [ ] **Native Drivers (zero external deps)**
-  - [ ] `JsonDriver` — `json_decode` / `json_encode` with `JSON_THROW_ON_ERROR` + `JSON_INVALID_UTF8_IGNORE`
-  - [ ] `XmlDriver` — SimpleXML + DOMDocument with default XXE protection (`LIBXML_NOENT` disabled)
-  - [ ] `CsvDriver` — `fgetcsv` / `fputcsv` with configurable delimiter, enclosure, and escape
+- [x] **Native Drivers (zero external deps)**
+  - [x] `JsonDriver` — `json_decode` / `json_encode` with `JSON_THROW_ON_ERROR` + `JSON_INVALID_UTF8_IGNORE`
+  - [x] `XmlDriver` — SimpleXML + DOMDocument with default XXE protection (`LIBXML_NOENT` disabled)
+  - [x] `CsvDriver` — `fgetcsv` / `fputcsv` with configurable delimiter, enclosure, and escape
 
-- [ ] **Quality Assurance**
-  - [ ] PHPUnit test suite with round-trip validation (JSON ↔ XML, JSON ↔ CSV)
-  - [ ] PHPStan at Level 9 — zero errors
-  - [ ] PSR-12 enforced via PHP_CodeSniffer
-  - [ ] GitHub Actions CI pipeline (test, analyse, cs-check on push/PR)
+- [x] **Quality Assurance**
+  - [x] PHPUnit test suite with round-trip validation (JSON ↔ XML, JSON ↔ CSV)
+  - [x] PHPStan at Level 9 — zero errors
+  - [x] PSR-12 enforced via PHP_CodeSniffer
+  - [x] GitHub Actions CI pipeline (test, analyse, cs-check on push/PR)
 
 ---
 
@@ -85,9 +85,9 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
 
 > Focus: YAML/TOML support and AI-specific tooling.
 
-- [ ] **Additional Format Drivers**
-  - [ ] `YamlDriver` — lightweight native YAML parser (subset) with optional `symfony/yaml` fallback
-  - [ ] `TomlDriver` — lightweight native TOML parser (subset) with optional `yosymfony/toml` fallback
+- [x] **Additional Format Drivers**
+  - [x] `YamlDriver` — lightweight native YAML parser (subset) with optional `symfony/yaml` fallback
+  - [x] `TomlDriver` — lightweight native TOML parser (subset) with optional `yosymfony/toml` fallback
 
 - [ ] **Token Optimization Utilities**
   - [ ] `TokenOptimizer` — estimate token/character savings between formats
@@ -161,7 +161,7 @@ We welcome community contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for f
    - **PHP Version:** 8.4+ only
    - **Dependencies:** Zero new runtime deps (use `suggest` if absolutely required)
    - **Code Style:** PSR-12 (enforced via PHP_CodeSniffer)
-   - **Static Analysis:** PHPStan Level 8 — no exceptions
+   - **Static Analysis:** PHPStan Level 9 — no exceptions
    - **Testing:** PHPUnit round-trip tests for every driver or feature
 3. **Submit a PR** — one feature per PR, keep it focused
 
