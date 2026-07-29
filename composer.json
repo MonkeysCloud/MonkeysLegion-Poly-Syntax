@@ -1,8 +1,41 @@
 {
     "name": "monkeyscloud/monkeyslegion-poly-syntax",
-    "description": "lightweight, extensible PHP package designed to perform high-performance, bidirectional transformations between modern data representation formats (JSON, YAML, TOML, XML, CSV, and custom structures).",
+    "description": "Lightweight, zero-dependency PHP 8.4+ package for high-performance bidirectional transformations between modern data representation formats (JSON, XML, CSV, YAML, TOML, and custom structures). Optimized for LLM prompt and RAG context token optimization.",
     "type": "library",
     "license": "MIT",
+    "readme": "README.md",
+    "keywords": [
+        "json",
+        "yaml",
+        "toml",
+        "xml",
+        "csv",
+        "transformer",
+        "serializer",
+        "parser",
+        "token-optimizer",
+        "llm",
+        "rag",
+        "prompt-engineering",
+        "php8.4"
+    ],
+    "homepage": "https://github.com/monkeyscloud/monkeyslegion-poly-syntax",
+    "support": {
+        "issues": "https://github.com/monkeyscloud/monkeyslegion-poly-syntax/issues",
+        "source": "https://github.com/monkeyscloud/monkeyslegion-poly-syntax"
+    },
+    "require": {
+        "php": ">=8.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "phpstan/phpstan": "^2.0",
+        "squizlabs/php_codesniffer": "^3.0"
+    },
+    "suggest": {
+        "symfony/yaml": "For advanced YAML parsing support via the YamlDriver",
+        "yosymfony/toml": "For TOML parsing support via the TomlDriver"
+    },
     "autoload": {
         "psr-4": {
             "Monkeyslegion\\PolySyntax\\": "src/"
@@ -13,6 +46,29 @@
             "Monkeyslegion\\PolySyntax\\Tests\\": "tests/"
         }
     },
-    "minimum-stability": "dev",
-    "require": {}
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": false
+    },
+    "scripts": {
+        "test": "phpunit --colors=always",
+        "test:coverage": "phpunit --colors=always --coverage-html .build/coverage",
+        "analyse": "phpstan analyse --level=8 --ansi src tests",
+        "cs-check": "phpcs --standard=PSR12 --colors src tests",
+        "cs-fix": "phpcbf --standard=PSR12 --colors src tests",
+        "check": [
+            "@cs-check",
+            "@analyse",
+            "@test"
+        ],
+        "pre-commit": [
+            "@cs-fix",
+            "@cs-check",
+            "@analyse",
+            "@test"
+        ]
+    }
 }

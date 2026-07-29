@@ -1,1 +1,15 @@
 /vendor/
+/.build/
+/.phpunit.cache/
+/.phpcs-cache/
+/phpstan.neon
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
