@@ -58,11 +58,11 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
 
 > Focus: Establish strict interfaces, driver registry, and first-party native drivers.
 
-- [ ] **Core Engine**
-  - [ ] `Monkeyslegion\PolySyntax\Contract\DriverInterface` — `decode(string): array` + `encode(array): string`
-  - [ ] `Monkeyslegion\PolySyntax\Transformer` — facade with driver registry and `transform()` orchestration
-  - [ ] `Monkeyslegion\PolySyntax\Enum\Syntax` — backed enum (`json`, `yaml`, `toml`, `xml`, `csv`)
-  - [ ] Exception hierarchy:
+- [x] **Core Engine**
+  - [x] `Monkeyslegion\PolySyntax\Contract\DriverInterface` — `decode(string): array` + `encode(array): string`
+  - [x] `Monkeyslegion\PolySyntax\Transformer` — facade with driver registry and `transform()` orchestration
+  - [x] `Monkeyslegion\PolySyntax\Enum\Syntax` — backed enum (`json`, `yaml`, `toml`, `xml`, `csv`)
+  - [x] Exception hierarchy:
     - `TransformerException` (base)
     - `DecodeException` (input failures)
     - `EncodeException` (output failures)
@@ -75,7 +75,7 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
 
 - [ ] **Quality Assurance**
   - [ ] PHPUnit test suite with round-trip validation (JSON ↔ XML, JSON ↔ CSV)
-  - [ ] PHPStan at Level 8 — zero errors
+  - [ ] PHPStan at Level 9 — zero errors
   - [ ] PSR-12 enforced via PHP_CodeSniffer
   - [ ] GitHub Actions CI pipeline (test, analyse, cs-check on push/PR)
 

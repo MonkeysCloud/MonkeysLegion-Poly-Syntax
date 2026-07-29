@@ -1,0 +1,23 @@
+{
+    "$schema": "https://raw.githubusercontent.com/infection/infection/refs/heads/master/resources/schema.json",
+    "source": {
+        "directories": [
+            "src"
+        ],
+        "excludes": [
+            "Placeholder.php"
+        ]
+    },
+    "mutators": {
+        "@default": true
+    },
+    "logs": {
+        "text": ".build/infection.log",
+        "html": ".build/infection.html"
+    },
+    "minMsi": 50,
+    "minCoveredMsi": 60,
+    "phpUnit": {
+        "configDir": "."
+    }
+}
