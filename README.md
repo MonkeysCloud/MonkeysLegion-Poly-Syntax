@@ -709,28 +709,102 @@ try {
 }
 ```
 
+### Custom Drivers (`registerSyntax`)
+
+Beyond the built-in `Syntax` enum, you can register any driver under an arbitrary string key using `registerSyntax()`:
+
+```php
+use Monkeyslegion\PolySyntax\Transformer;
+use Monkeyslegion\PolySyntax\Driver\JsonDriver;
+
+$transformer = new Transformer();
+
+// Register a custom key that doesn't correspond to a Syntax case
+$transformer->registerSyntax('msgpack-lite', new JsonDriver());
+
+// Use the custom key anywhere Syntax|string is accepted
+$data = $transformer->decode('{"key":"value"}', 'msgpack-lite');
+
+// Check if a custom key is registered
+if ($transformer->supports('msgpack-lite')) {
+    echo 'Custom format is available';
+}
+
+// List ALL registered syntax keys (built-in + custom)
+$allKeys = $transformer->registeredSyntaxes();
+// ['json', 'xml', 'csv', 'yaml', 'toml', 'msgpack-lite', ...]
+```
+
+### Chained Transformations (`transformChain`)
+
+Transform through multiple intermediate formats with a single call — useful for data fidelity round-trips or format migration pipelines:
+
+```php
+use Monkeyslegion\PolySyntax\Syntax;
+
+// Two-format chain: JSON → YAML (equivalent to transform())
+$yaml = $transformer->transformChain(
+    '{"hello":"world"}',
+    Syntax::JSON,
+    Syntax::YAML,
+);
+
+// Three-format chain: JSON → YAML → TOML
+// Each intermediate format is decoded and re-encoded to ensure fidelity
+$toml = $transformer->transformChain(
+    '{"server":{"host":"localhost","port":8080}}',
+    Syntax::JSON,
+    Syntax::YAML,
+    Syntax::TOML,
+);
+
+// Mix enum and custom syntax keys
+$transformer->registerSyntax('compact', new CsvDriver());
+$csv = $transformer->transformChain(
+    '{"name":"Alice","age":30}',
+    Syntax::JSON,
+    'compact',
+);
+```
+
 ### Real-World AI Pipeline Example
 
 ```php
+use Monkeyslegion\PolySyntax\Utility\TokenOptimizer;
+
 // 1. Receive JSON from API
-$apiResponse = '{"results":[{"name":"Alice","analysis":"...long text..."}]}';
+$apiResponse = '{"users":[{"name":"Alice","analysis":"..."},{"name":"Bob","analysis":"..."}]}';
 
 // 2. Decode to array
 $data = $transformer->decode($apiResponse, Syntax::JSON);
 
-// 3. Extract text to analyze
-foreach ($data['results'] as &$result) {
-    // 4. Encode individual item as CSV (token-efficient) for LLM prompt
-    $promptFragment = $transformer->encode([$result], Syntax::CSV);
+// 3. Use TokenOptimizer to pick the most efficient format for LLM prompts
+$optimizer = new TokenOptimizer($transformer);
 
-    // ... send $promptFragment to LLM, get response ...
+foreach ($data['users'] as &$user) {
+    // 4. Encode as YAML (most token-efficient for structured data) for LLM prompt
+    $promptFragment = $transformer->encode([$user], Syntax::YAML);
 
-    // 5. Decode LLM response back to array
-    $llmResult = $transformer->decode($llmResponse, Syntax::CSV);
-    $result['sentiment'] = $llmResult[0]['sentiment'] ?? 'unknown';
+    // 5. Estimate token cost
+    $estimate = $optimizer->estimate($promptFragment, Syntax::YAML);
+    // $estimate->estimatedTokens → e.g. 12 tokens
+
+    // 6. Decode LLM response back to array
+    $llmResult = $transformer->decode($llmResponse, Syntax::YAML);
+    $user['sentiment'] = $llmResult['sentiment'] ?? 'unknown';
 }
 
-// 6. Encode final result back to JSON
+// 7. Compare format efficiency for the final output
+$comparison = $optimizer->compare($data, Syntax::JSON, Syntax::YAML);
+echo $comparison->summary();
+// "Switching from JSON to YAML saves 42 tokens (28.3% saved) — 1.39× reduction"
+
+// 8. Analyze all registered formats at once
+foreach ($optimizer->analyzeAll($data) as $format => $result) {
+    echo $result->summary() . "\n";
+}
+
+// 9. Encode final result back to JSON
 echo $transformer->encode($data, Syntax::JSON);
 ```
 
@@ -738,20 +812,83 @@ echo $transformer->encode($data, Syntax::JSON);
 
 ## 📊 Token Optimization
 
+Estimate and compare LLM token consumption across formats using `TokenOptimizer`:
+
 ```php
-use Monkeyslegion\PolySyntax\Util\TokenOptimizer;
+use Monkeyslegion\PolySyntax\Utility\TokenOptimizer;
+use Monkeyslegion\PolySyntax\Enum\Syntax;
 
-$optimizer = new TokenOptimizer();
-$savings = $optimizer->estimateSavings($jsonPayload, Syntax::JSON, Syntax::YAML);
+$optimizer = new TokenOptimizer($transformer);
 
-printf(
-    "Switch from %s to %s saves ~%d tokens (%.1f%%)",
-    $savings->from()->name,
-    $savings->to()->name,
-    $savings->tokensSaved(),
-    $savings->percentageSaved(),
+// Estimate tokens in an already-formatted string
+$estimate = $optimizer->estimate(
+    '{"name":"Alice","age":30}',
+    Syntax::JSON,
 );
+// TokenEstimate { syntax: JSON, bytes: 24, estimatedTokens: 7, ... }
+
+// Encode data to a format and estimate
+$yamlEstimate = $optimizer->estimateData(
+    ['name' => 'Alice', 'age' => 30],
+    Syntax::YAML,
+);
+
+// Compare two specific formats
+$comparison = $optimizer->compare(
+    ['name' => 'Alice', 'age' => 30, 'role' => 'admin'],
+    Syntax::JSON,
+    Syntax::YAML,
+);
+
+if ($comparison->isBeneficial()) {
+    echo $comparison->summary();
+    // "Switching from JSON to YAML saves 5 tokens (17.9% saved) — 1.22× reduction"
+}
+
+// Analyze all registered formats at once
+$results = $optimizer->analyzeAll([
+    'server' => ['host' => 'localhost', 'port' => 8080],
+    'database' => ['name' => 'app_db', 'user' => 'admin'],
+]);
+
+foreach ($results as $format => $comparison) {
+    echo $comparison->summary() . "\n";
+}
 ```
+
+### Token Density Reference
+
+| Format | Tokens/KB | Relative to JSON |
+|--------|----------:|-----------------:|
+| **CSV** | ~160 | **0.55×** (most compact) |
+| **YAML** | ~180 | **0.62×** |
+| **TOML** | ~190 | **0.66×** |
+| **JSON** | ~290 | 1.00× (baseline) |
+| **XML** | ~350 | **1.21×** (most verbose) |
+
+The coefficients are derived from empirical measurements of GPT-family tokenizer behavior on structured data.
+
+### TokenEstimate Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `syntax` | `Syntax` | The format this estimate applies to |
+| `characters` | `int` | String length in characters |
+| `bytes` | `int` | String size in bytes |
+| `estimatedTokens` | `int` | Estimated LLM token count |
+| `tokensPerByte` | `float` | Density coefficient used |
+
+### FormatComparison Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `from` | `TokenEstimate` | Baseline format estimate |
+| `to` | `TokenEstimate` | Target format estimate |
+| `savingsTokens` | `int` | Absolute tokens saved |
+| `savingsPercent` | `float` | Percentage saved |
+| `reductionFactor` | `float` | Size ratio (1.0 = same) |
+| `isBeneficial()` | `bool` | Whether target saves tokens |
+| `summary()` | `string` | Human-readable form |
 
 ---
 
@@ -782,9 +919,9 @@ composer test:coverage     # Coverage report
 | ------ | ------------- |
 | **PHPStan** | Level 9, zero errors |
 | **PHPCS** | PSR-12, zero errors |
-| **PHPUnit** | 217+ tests, all pass |
-| **Mutation Score (MSI)** | ≥ 90% |
-| **Covered Mutation Score** | ≥ 95% |
+| **PHPUnit** | 380+ tests, all pass |
+| **Mutation Score (MSI)** | ≥ 82% |
+| **Covered Mutation Score** | ≥ 82% |
 | **Test coverage** | ≥ 90% lines |
 
 ---

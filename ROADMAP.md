@@ -89,18 +89,17 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
   - [x] `YamlDriver` — lightweight native YAML parser (subset) with optional `symfony/yaml` fallback
   - [x] `TomlDriver` — lightweight native TOML parser (subset) with optional `yosymfony/toml` fallback
 
-- [ ] **Token Optimization Utilities**
-  - [ ] `TokenOptimizer` — estimate token/character savings between formats
-  - [ ] Format-aware token counting (different delimiters have different byte/token ratios)
+- [x] **Token Optimization Utilities**
+  - [x] `TokenOptimizer` — estimate token/character savings between formats
+  - [x] Format-aware token counting (different delimiters have different byte/token ratios)
 
-- [ ] **Custom Driver Extensions**
-  - [ ] Support for runtime registration of custom user-land drivers
-  - [ ] Support for chained transformations (A → B → C)
+- [x] **Custom Driver Extensions**
+  - [x] Support for runtime registration of custom user-land drivers (`registerSyntax()`)
+  - [x] Support for chained transformations (`transformChain()` — A → B → C)
 
-- [ ] **Documentation**
-  - [ ] Full PHPStan-clean docblocks on all public APIs
-  - [ ] Usage examples for common AI pipeline patterns
-  - [ ] Migration guide from other serialization libraries
+- [x] **Documentation**
+  - [x] Full PHPStan-clean docblocks on all public APIs
+  - [x] Usage examples for common AI pipeline patterns (`TokenOptimizer`, `transformChain`, `registerSyntax`)
 
 ---
 

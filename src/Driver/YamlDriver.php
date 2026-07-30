@@ -59,6 +59,7 @@ final class YamlDriver implements DriverInterface
     {
     }
 
+    #[\Override]
     public function supportedSyntax(): Syntax
     {
         return Syntax::YAML;
@@ -66,6 +67,15 @@ final class YamlDriver implements DriverInterface
 
     // ─── Decode ──────────────────────────────────────────────────────
 
+    /**
+     * Decode a YAML string into a PHP array.
+     *
+     * @param  string $input The YAML string to decode.
+     * @return array<mixed>   The decoded PHP array.
+     *
+     * @throws DecodeException When the input cannot be parsed.
+     */
+    #[\Override]
     public function decode(string $input): array
     {
         $trimmed = \trim($input);
@@ -86,6 +96,13 @@ final class YamlDriver implements DriverInterface
 
     // ─── Encode ──────────────────────────────────────────────────────
 
+    /**
+     * Encode a PHP array into a YAML string.
+     *
+     * @param  array<mixed> $data The PHP array to encode.
+     * @return string              The formatted YAML string.
+     */
+    #[\Override]
     public function encode(array $data): string
     {
         if ($data === []) {

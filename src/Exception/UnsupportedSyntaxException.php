@@ -15,17 +15,19 @@ use Monkeyslegion\PolySyntax\Enum\Syntax;
 final class UnsupportedSyntaxException extends TransformerException
 {
     /**
-     * @param  Syntax          $syntax   The unsupported format that was requested.
+     * @param  Syntax|string  $syntax   The unsupported format identifier.
      * @param  int             $code     Optional error code.
      * @param  \Throwable|null $previous Optional previous exception for chaining.
      */
     public function __construct(
-        Syntax $syntax,
+        Syntax|string $syntax,
         int $code = 0,
         ?\Throwable $previous = null,
     ) {
+        $label = $syntax instanceof Syntax ? $syntax->value : $syntax;
+
         parent::__construct(
-            \sprintf('No driver registered for syntax "%s"', $syntax->value),
+            \sprintf('No driver registered for syntax "%s"', $label),
             $code,
             $previous,
         );

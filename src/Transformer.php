@@ -17,6 +17,10 @@ use Monkeyslegion\PolySyntax\Exception\UnsupportedSyntaxException;
  * a unified API for decoding, encoding, and transforming between
  * data representation formats.
  *
+ * Supports both built-in `Syntax` enum formats and user-registered
+ * custom syntax strings, as well as chained transformations through
+ * multiple intermediate formats (A → B → C).
+ *
  * ## Usage
  *
  * ```php
@@ -26,6 +30,9 @@ use Monkeyslegion\PolySyntax\Exception\UnsupportedSyntaxException;
  * $data  = $transformer->decode('{"key":"value"}', Syntax::JSON);
  * $yaml  = $transformer->encode($data, Syntax::YAML);
  * $xml   = $transformer->transform('{"key":"value"}', Syntax::JSON, Syntax::XML);
+ *
+ * // Chained transformation: JSON → YAML → TOML
+ * $toml  = $transformer->transformChain('{"key":"value"}', Syntax::JSON, Syntax::YAML, Syntax::TOML);
  * ```
  */
 final class Transformer
@@ -38,7 +45,7 @@ final class Transformer
     private array $drivers = [];
 
     /**
-     * Register a driver with the transformer.
+     * Register a driver with the transformer using its supported syntax.
      *
      * If a driver for the same syntax is already registered,
      * it will be replaced.
@@ -54,42 +61,83 @@ final class Transformer
     }
 
     /**
-     * Check whether a driver is registered for the given syntax.
+     * Register a driver with an explicit syntax key.
      *
-     * @param  Syntax $syntax The format to check.
-     * @return bool           True if a driver is available.
+     * Unlike `registerDriver()`, this method allows registering a driver
+     * under any string key, not just the value of its `supportedSyntax()`.
+     * This is useful for custom user-land drivers whose format does not
+     * correspond to any `Syntax` enum case.
+     *
+     * If a driver for the same key is already registered, it will be replaced.
+     *
+     * @param  string          $syntax The custom syntax identifier.
+     * @param  DriverInterface $driver The driver instance to register.
+     * @return self                    Instance for method chaining.
      */
-    public function supports(Syntax $syntax): bool
+    public function registerSyntax(string $syntax, DriverInterface $driver): self
     {
-        return isset($this->drivers[$syntax->value]);
+        $this->drivers[$syntax] = $driver;
+
+        return $this;
     }
 
     /**
-     * Return all syntaxes that have a registered driver.
+     * Check whether a driver is registered for the given syntax.
+     *
+     * Accepts both `Syntax` enum values and custom string identifiers.
+     *
+     * @param  Syntax|string $syntax The format to check.
+     * @return bool                  True if a driver is available.
+     */
+    public function supports(Syntax|string $syntax): bool
+    {
+        return isset($this->drivers[$this->resolveKey($syntax)]);
+    }
+
+    /**
+     * Return all registered syntax keys.
+     *
+     * @return list<string>
+     */
+    public function registeredSyntaxes(): array
+    {
+        return \array_keys($this->drivers);
+    }
+
+    /**
+     * Return all registered syntaxes as `Syntax` enum values.
+     *
+     * Only syntaxes that correspond to a `Syntax` enum case are returned.
+     * Custom string-only syntaxes are excluded.
      *
      * @return list<Syntax>
      */
     public function supportedSyntaxes(): array
     {
-        return \array_values(
-            \array_map(
-                static fn (DriverInterface $driver): Syntax => $driver->supportedSyntax(),
-                $this->drivers,
-            ),
-        );
+        $result = [];
+
+        foreach ($this->drivers as $key => $driver) {
+            $syntax = $driver->supportedSyntax();
+
+            if ($syntax->value === $key) {
+                $result[] = $syntax;
+            }
+        }
+
+        return $result;
     }
 
     /**
      * Decode a string payload into a PHP array using the registered driver.
      *
-     * @param  string $input  The raw format string to decode.
-     * @param  Syntax $syntax The format of the input string.
-     * @return array<mixed>   The decoded PHP array.
+     * @param  string        $input  The raw format string to decode.
+     * @param  Syntax|string $syntax The format of the input string.
+     * @return array<mixed>          The decoded PHP array.
      *
      * @throws UnsupportedSyntaxException When no driver is registered for the syntax.
      * @throws DecodeException            When the input cannot be parsed.
      */
-    public function decode(string $input, Syntax $syntax): array
+    public function decode(string $input, Syntax|string $syntax): array
     {
         return $this->getDriver($syntax)->decode($input);
     }
@@ -97,14 +145,14 @@ final class Transformer
     /**
      * Encode a PHP array into a string using the registered driver.
      *
-     * @param  array<mixed> $data   The PHP array to encode.
-     * @param  Syntax       $syntax The target format.
-     * @return string                The formatted output string.
+     * @param  array<mixed>  $data   The PHP array to encode.
+     * @param  Syntax|string $syntax The target format.
+     * @return string                 The formatted output string.
      *
      * @throws UnsupportedSyntaxException When no driver is registered for the syntax.
      * @throws EncodeException            When the data cannot be serialized.
      */
-    public function encode(array $data, Syntax $syntax): string
+    public function encode(array $data, Syntax|string $syntax): string
     {
         return $this->getDriver($syntax)->encode($data);
     }
@@ -115,16 +163,16 @@ final class Transformer
      * This is a convenience method that performs a decode followed
      * by an encode in a single call.
      *
-     * @param  string $input The raw input string in the source format.
-     * @param  Syntax $from  The source format.
-     * @param  Syntax $to    The target format.
-     * @return string         The transformed output string.
+     * @param  string        $input The raw input string in the source format.
+     * @param  Syntax|string $from  The source format.
+     * @param  Syntax|string $to    The target format.
+     * @return string                The transformed output string.
      *
      * @throws UnsupportedSyntaxException When either format has no registered driver.
      * @throws DecodeException            When the input cannot be parsed.
      * @throws EncodeException            When the data cannot be serialized.
      */
-    public function transform(string $input, Syntax $from, Syntax $to): string
+    public function transform(string $input, Syntax|string $from, Syntax|string $to): string
     {
         return $this->encode(
             $this->decode($input, $from),
@@ -133,16 +181,69 @@ final class Transformer
     }
 
     /**
-     * Retrieve the driver for the given syntax.
+     * Transform a payload through multiple intermediate formats (A → B → C → …).
      *
-     * @param  Syntax $syntax The requested format.
-     * @return DriverInterface The registered driver.
+     * Each format in the chain acts as a round-trip: the intermediate formats
+     * are decoded and re-encoded to ensure data fidelity at every step.
+     * The final format in the chain is the output format.
+     *
+     * At least two syntaxes must be provided (source and target).
+     *
+     * @param  string        $input The raw input string in the first format.
+     * @param  Syntax|string ...$chain  The ordered list of formats. Minimum 2.
+     * @return string                   The transformed output in the last format.
+     *
+     * @throws UnsupportedSyntaxException When a format in the chain has no driver.
+     * @throws DecodeException            When the input cannot be parsed.
+     * @throws EncodeException            When the data cannot be serialized.
+     */
+    public function transformChain(string $input, Syntax|string ...$chain): string
+    {
+        $count = \count($chain);
+
+        if ($count < 2) {
+            throw new \InvalidArgumentException(
+                \sprintf(
+                    'transformChain requires at least 2 syntaxes, %d given',
+                    $count,
+                ),
+            );
+        }
+
+        $data = $this->decode($input, $chain[0]);
+
+        for ($i = 1; $i < $count - 1; $i++) {
+            $data = $this->decode(
+                $this->encode($data, $chain[$i]),
+                $chain[$i],
+            );
+        }
+
+        return $this->encode($data, $chain[$count - 1]);
+    }
+
+    /**
+     * Retrieve the driver for the given syntax key.
+     *
+     * @param  Syntax|string $syntax The format identifier.
+     * @return DriverInterface        The registered driver.
      *
      * @throws UnsupportedSyntaxException When no driver is registered.
      */
-    private function getDriver(Syntax $syntax): DriverInterface
+    private function getDriver(Syntax|string $syntax): DriverInterface
     {
-        return $this->drivers[$syntax->value]
+        return $this->drivers[$this->resolveKey($syntax)]
             ?? throw new UnsupportedSyntaxException($syntax);
+    }
+
+    /**
+     * Resolve a Syntax|string to its string key.
+     *
+     * @param  Syntax|string $syntax The format identifier.
+     * @return string                The string key for driver lookup.
+     */
+    private function resolveKey(Syntax|string $syntax): string
+    {
+        return $syntax instanceof Syntax ? $syntax->value : $syntax;
     }
 }
