@@ -114,23 +114,29 @@ The drivers auto-detect the best available backend at runtime.
 ## 🏗️ Architecture
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
-│ Input       │ ──▶ │ Input Driver     │ ──▶ │ Native PHP   │
-│ Payload     │     │ decode()         │     │ Array        │
-└─────────────┘     └──────────────────┘     └──────┬───────┘
-                                                     │
-┌──────────────┐     ┌──────────────────┐            │
-│ Output       │ ◀── │ Output Driver    │ ◀──────────┘
-│ Payload      │     │ encode()         │
-└──────────────┘     └──────────────────┘
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
+│ Full Payload     │ ──▶ │ Input Driver     │ ──▶ │ Native PHP   │
+│ (in memory)      │     │ decode()         │     │ Array        │
+└──────────────────┘     └──────────────────┘     └──────┬───────┘
+                                                          │
+┌──────────────────┐     ┌──────────────────┐            │
+│ Full Payload     │ ◀── │ Output Driver    │ ◀──────────┘
+│ (in memory)      │     │ encode()         │
+└──────────────────┘     └──────────────────┘
+
+┌──────────────────┐     ┌──────────────────────────┐    ┌──────────────┐
+│ Large Payload    │ ──▶ │ Streaming Decoder        │──▶ │ Items        │
+│ (chunk by chunk) │     │ feed() + end() + next()  │    │ (one by one) │
+└──────────────────┘     └──────────────────────────┘    └──────────────┘
 ```
 
 ### Core Components
 
 | Component | Description |
 | ----------- | ------------- |
-| `Transformer` | Facade for format routing and transformation orchestration |
+| `Transformer` | Facade for format routing, transformation orchestration, and streaming |
 | `DriverInterface` | Contract every driver must implement (`decode()` + `encode()`) |
+| `StreamingDecoderInterface` | Contract for incremental chunk-based decoders (`feed()` + `end()` + `next()`) |
 | `Syntax` enum | Strongly-typed format identifiers |
 | `Exception\*` | Domain-specific exception hierarchy |
 
@@ -676,6 +682,57 @@ foreach ($transformer->supportedSyntaxes() as $syntax) {
 }
 ```
 
+### Streaming Decoders
+
+For large payloads that don't fit in memory, Poly-Syntax provides streaming decoders that process data chunk by chunk:
+
+```php
+use Monkeyslegion\PolySyntax\Transformer;
+use Monkeyslegion\PolySyntax\Enum\Syntax;
+
+$transformer = new Transformer();
+
+// Create a streaming decoder for CSV
+$decoder = $transformer->createStreamDecoder(Syntax::CSV);
+
+// Feed chunks (e.g., from SplFileObject or a generator) and drain items
+foreach (chunkedFileReader('huge.csv') as $chunk) {
+    $decoder->feed($chunk);
+
+    while (($row = $decoder->next()) !== null) {
+        processRow($row);
+    }
+}
+
+$decoder->end();
+
+while (($row = $decoder->next()) !== null) {
+    processRow($row);
+}
+```
+
+#### Available Streaming Decoders
+
+| Decoder | Syntax | Use Case |
+|---------|--------|----------|
+| `CsvStreamingDecoder` | `CSV` | Line-by-line CSV with multi-line quoted fields |
+| `JsonStreamingDecoder` | `JSON` | Element-by-element JSON array streaming |
+| `TomlStreamingDecoder` | `TOML` | Section-based TOML streaming |
+
+#### Convenience Wrapper: `decodeStream()`
+
+```php
+// Process chunks (e.g., read in 64KB blocks) and yield items in one call
+$items = $transformer->decodeStream(
+    chunkedFileReader('large.json'),
+    Syntax::JSON,
+);
+
+foreach ($items as $item) {
+    processItem($item);
+}
+```
+
 ### Error Handling Patterns
 
 ```php
@@ -733,38 +790,6 @@ if ($transformer->supports('msgpack-lite')) {
 // List ALL registered syntax keys (built-in + custom)
 $allKeys = $transformer->registeredSyntaxes();
 // ['json', 'xml', 'csv', 'yaml', 'toml', 'msgpack-lite', ...]
-```
-
-### Chained Transformations (`transformChain`)
-
-Transform through multiple intermediate formats with a single call — useful for data fidelity round-trips or format migration pipelines:
-
-```php
-use Monkeyslegion\PolySyntax\Syntax;
-
-// Two-format chain: JSON → YAML (equivalent to transform())
-$yaml = $transformer->transformChain(
-    '{"hello":"world"}',
-    Syntax::JSON,
-    Syntax::YAML,
-);
-
-// Three-format chain: JSON → YAML → TOML
-// Each intermediate format is decoded and re-encoded to ensure fidelity
-$toml = $transformer->transformChain(
-    '{"server":{"host":"localhost","port":8080}}',
-    Syntax::JSON,
-    Syntax::YAML,
-    Syntax::TOML,
-);
-
-// Mix enum and custom syntax keys
-$transformer->registerSyntax('compact', new CsvDriver());
-$csv = $transformer->transformChain(
-    '{"name":"Alice","age":30}',
-    Syntax::JSON,
-    'compact',
-);
 ```
 
 ### Real-World AI Pipeline Example
@@ -954,7 +979,7 @@ composer check
 composer quality-report
 
 # Or individual checks
-composer test              # PHPUnit (382+ tests)
+composer test              # PHPUnit (439+ tests)
 composer analyse           # PHPStan Level 9
 composer cs-check          # PSR-12 code style
 composer infection         # Mutation testing (MSI ≥ 82%)
@@ -967,7 +992,7 @@ composer test:coverage     # Coverage report
 | ------ | ------------- |
 | **PHPStan** | Level 9, zero errors |
 | **PHPCS** | PSR-12, zero errors |
-| **PHPUnit** | 380+ tests, all pass |
+| **PHPUnit** | 439+ tests, all pass |
 | **Mutation Score (MSI)** | ≥ 82% |
 | **Covered Mutation Score** | ≥ 82% |
 | **Test coverage** | ≥ 90% lines |

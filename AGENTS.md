@@ -28,8 +28,12 @@ Lightweight, zero-dependency PHP 8.4+ library for bidirectional data format tran
 ### Architecture
 
 - **Zero runtime dependencies** — only PHP 8.4+ and bundled extensions
-- **`Transformer` is the single entry point** for all format transformations
+- **`Transformer` is the single entry point** for all format transformations and streaming
 - **Every driver implements `DriverInterface`** with `decode()` + `encode()` + `supportedSyntax()`
+- **Streaming decoders** implement `StreamingDecoderInterface` with `feed()` + `end()` + `next()` + `reset()`
+- **Available streaming decoders**: `CsvStreamingDecoder`, `JsonStreamingDecoder`, `TomlStreamingDecoder`
+- **`Transformer::createStreamDecoder()`** — factory for built-in streaming decoders
+- **`Transformer::decodeStream()`** — convenience wrapper feeding iterable chunks and yielding items
 - **Custom drivers** can be registered at runtime without modifying core
 - **External libraries** must be optional (`suggest` in composer.json), checked at runtime with `class_exists()`
 
@@ -47,7 +51,7 @@ Run `composer quality-report` for the full suite:
 
 - `cs-check` — PSR-12, zero violations
 - `analyse` — PHPStan Level 9, zero errors
-- `test` — PHPUnit 11.x, 382+ tests, all pass
+- `test` — PHPUnit 11.x, 439+ tests, all pass
 - `infection` — MSI ≥ 82%, Covered MSI ≥ 82% (config: `infection.json.dist`)
 
 ### Commit Style
@@ -58,10 +62,12 @@ Run `composer quality-report` for the full suite:
 
 ## Key Files
 
-- `src/Transformer.php` — main facade for format transformation
-- `src/Contract/DriverInterface.php` — driver contract
+- `src/Transformer.php` — main facade for format transformation and streaming
+- `src/Contract/DriverInterface.php` — driver contract (`decode()` + `encode()`)
+- `src/Contract/StreamingDecoderInterface.php` — streaming decoder contract (`feed()` + `end()` + `next()`)
 - `src/Enum/Syntax.php` — strongly-typed format identifiers
 - `src/Driver/*.php` — format drivers (JSON, XML, CSV, YAML, TOML)
+- `src/Stream/*.php` — streaming decoders (CSV, JSON, TOML)
 - `src/Exception/*.php` — domain exception hierarchy
 - `infection.json.dist` — mutation testing config (MSI ≥ 82%)
 - `benchmarks/` — encode/decode benchmark suite
