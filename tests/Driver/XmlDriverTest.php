@@ -303,6 +303,107 @@ final class XmlDriverTest extends TestCase
     }
 
     #[Test]
+    public function itDecodesDeeplyNestedXml(): void
+    {
+        $xml = <<<'XML'
+        <root>
+            <level1>
+                <level2>
+                    <level3>
+                        <value>deep</value>
+                    </level3>
+                </level2>
+            </level1>
+        </root>
+        XML;
+
+        $result = $this->driver->decode($xml);
+
+        self::assertSame('deep', $result['level1']['level2']['level3']['value']);
+    }
+
+    #[Test]
+    public function itDecodesMultipleAttributesOnSameElement(): void
+    {
+        $xml = '<root><item id="42" name="test" active="true" count="3">content</item></root>';
+
+        $result = $this->driver->decode($xml);
+
+        $attrs = $result['item']['@attributes'];
+        self::assertSame('42', $attrs['id']);
+        self::assertSame('test', $attrs['name']);
+        self::assertSame('true', $attrs['active']);
+        self::assertSame('3', $attrs['count']);
+        self::assertSame('content', $result['item']['@text']);
+    }
+
+    #[Test]
+    public function itDecodesSelfClosingElementWithAttributes(): void
+    {
+        $xml = '<root><item id="1" /><child>value</child></root>';
+
+        $result = $this->driver->decode($xml);
+
+        self::assertArrayHasKey('item', $result);
+        self::assertArrayHasKey('child', $result);
+        self::assertSame('value', $result['child']);
+    }
+
+    #[Test]
+    public function itDecodesMixedTextAndElementChildren(): void
+    {
+        $xml = '<root>before<child>inside</child>after</root>';
+
+        $result = $this->driver->decode($xml);
+
+        // The text is lost when elements are present (DOM standard)
+        self::assertArrayHasKey('child', $result);
+        self::assertSame('inside', $result['child']);
+    }
+
+    #[Test]
+    public function itEncodesScalarBooleansAndIntegers(): void
+    {
+        $result = $this->driver->encode([
+            'count' => 42,
+            'active' => true,
+            'score' => 9.5,
+            'name' => 'test',
+        ]);
+
+        self::assertStringContainsString('<count>42</count>', $result);
+        self::assertStringContainsString('<active>1</active>', $result);
+        self::assertStringContainsString('<score>9.5</score>', $result);
+        self::assertStringContainsString('<name>test</name>', $result);
+    }
+
+    #[Test]
+    public function itRoundTripsWithMixedIntegerAndStringKeys(): void
+    {
+        $xml = '<root><item>a</item><item>b</item><name>test</name></root>';
+
+        $decoded = $this->driver->decode($xml);
+
+        // Decode preserves structure
+        self::assertSame(['a', 'b'], $decoded['item']);
+        self::assertSame('test', $decoded['name']);
+    }
+
+    #[Test]
+    public function itEncodeWithLeadingListItems(): void
+    {
+        $result = $this->driver->encode([
+            ['a', 'b'],
+            ['c', 'd'],
+        ]);
+
+        self::assertStringContainsString('<item>a</item>', $result);
+        self::assertStringContainsString('<item>b</item>', $result);
+        self::assertStringContainsString('<item>c</item>', $result);
+        self::assertStringContainsString('<item>d</item>', $result);
+    }
+
+    #[Test]
     public function itEncodesNestedArraysWithChildrenAndAttributes(): void
     {
         $result = $this->driver->encode([

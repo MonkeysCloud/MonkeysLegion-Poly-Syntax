@@ -676,12 +676,20 @@ final class YamlDriver implements DriverInterface
 
         // Hex integer
         if (\preg_match('/^[+-]?0[xX][0-9a-fA-F_]+$/', $trimmed)) {
-            return \intval(\str_replace('_', '', $trimmed), 16);
+            $cleaned = \ltrim(\str_replace('_', '', $trimmed), '+');
+            $neg = $cleaned[0] === '-';
+            $digits = \substr(\ltrim($cleaned, '-'), 2);
+
+            return $neg ? -\intval($digits, 16) : \intval($digits, 16);
         }
 
         // Octal integer
         if (\preg_match('/^[+-]?0[oO][0-7_]+$/', $trimmed)) {
-            return \intval(\str_replace('_', '', $trimmed), 8);
+            $cleaned = \ltrim(\str_replace('_', '', $trimmed), '+');
+            $neg = $cleaned[0] === '-';
+            $digits = \substr(\ltrim($cleaned, '-'), 2);
+
+            return $neg ? -\intval($digits, 8) : \intval($digits, 8);
         }
 
         // Numeric
@@ -762,7 +770,13 @@ final class YamlDriver implements DriverInterface
                     default => $next,
                 };
 
-                $i += 2;
+                // Hex escapes need additional advancement past the hex digits
+                $i += match ($next) {
+                    'x' => 4,
+                    'u' => 6,
+                    'U' => 10,
+                    default => 2,
+                };
                 continue;
             }
 

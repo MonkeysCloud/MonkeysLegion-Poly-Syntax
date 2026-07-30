@@ -247,6 +247,18 @@ final class JsonDriverTest extends TestCase
     }
 
     #[Test]
+    public function itThrowsOnDeepDecodeWithMinimumDepth(): void
+    {
+        $shallow = new JsonDriver(depth: 0);
+
+        $this->expectException(DecodeException::class);
+
+        // Depth 0 clamped to 1 — decoding a 3-level nested JSON fails
+        // (mutant max(2, 0) would allow it, killing the IncrementInteger)
+        $shallow->decode('{"a":{"b":{"c":"deep"}}}');
+    }
+
+    #[Test]
     public function itHasDefaultDepthOf512(): void
     {
         $driver = new JsonDriver();

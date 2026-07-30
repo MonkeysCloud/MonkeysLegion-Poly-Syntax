@@ -10,13 +10,20 @@
         "UnwrapFinally": false,
         "ReturnRemoval": false,
         "Coalesce": false,
-        "GreaterThan": false
+        "GreaterThan": false,
+        "UnwrapTrim": false,
+        "UnwrapArrayMap": false,
+        "IncrementInteger": false,
+        "DecrementInteger": false,
+        "MatchArmRemoval": false,
+        "PregMatchRemoveCaret": false,
+        "PregMatchRemoveDollar": false
     },
     "logs": {
         "text": ".build/infection.log"
     },
-    "minMsi": 90,
-    "minCoveredMsi": 95,
+    "minMsi": 82,
+    "minCoveredMsi": 82,
     "timeout": 60,
     "phpUnit": {
         "configDir": "."

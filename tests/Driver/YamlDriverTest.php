@@ -318,6 +318,38 @@ YAML;
     }
 
     #[Test]
+    public function itDecodesHexAndOctalIntegers(): void
+    {
+        $yaml = <<<'YAML'
+hex: 0xFF
+octal: 0o77
+neg_hex: -0x1A
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame(255, $result['hex']);
+        self::assertSame(63, $result['octal']);
+        self::assertSame(-26, $result['neg_hex']);
+    }
+
+    #[Test]
+    public function itDecodesScientificNotation(): void
+    {
+        $yaml = <<<'YAML'
+sci: 1.5e3
+small: 1e-3
+neg: -2.5E2
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame(1500.0, $result['sci']);
+        self::assertSame(0.001, $result['small']);
+        self::assertSame(-250.0, $result['neg']);
+    }
+
+    #[Test]
     public function itDecodesSpecialFloats(): void
     {
         $yaml = <<<'YAML'
@@ -331,6 +363,141 @@ YAML;
         self::assertTrue(\is_infinite($result['inf']) && $result['inf'] > 0);
         self::assertTrue(\is_infinite($result['neg_inf']) && $result['neg_inf'] < 0);
         self::assertTrue(\is_nan($result['nan']));
+    }
+
+    #[Test]
+    public function itDecodesBareTopLevelSequence(): void
+    {
+        $yaml = <<<'YAML'
+- apple
+- banana
+- cherry
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame(['apple', 'banana', 'cherry'], $result);
+    }
+
+    #[Test]
+    public function itDecodesNullInSequence(): void
+    {
+        $yaml = <<<'YAML'
+items:
+  - a
+  - ~
+  - b
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('a', $result['items'][0]);
+        self::assertNull($result['items'][1]);
+        self::assertSame('b', $result['items'][2]);
+    }
+
+    #[Test]
+    public function itDecodesInlineSequenceInsideInlineMapping(): void
+    {
+        $yaml = 'config: { list: [1, 2, 3], enabled: true }';
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame([1, 2, 3], $result['config']['list']);
+        self::assertTrue($result['config']['enabled']);
+    }
+
+    #[Test]
+    public function itDecodesInlineMappingInsideInlineSequence(): void
+    {
+        $yaml = 'items: [{ a: 1, b: 2 }, { c: 3 }]';
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertCount(2, $result['items']);
+        self::assertSame(1, $result['items'][0]['a']);
+        self::assertSame(2, $result['items'][0]['b']);
+        self::assertSame(3, $result['items'][1]['c']);
+    }
+
+    #[Test]
+    public function itDecodesOnlyCommentsAsEmpty(): void
+    {
+        $yaml = <<<'YAML'
+# just a comment
+# another one
+YAML;
+
+        self::assertSame([], $this->driver->decode($yaml));
+    }
+
+    #[Test]
+    public function itDecodesKeysWithDots(): void
+    {
+        $yaml = <<<'YAML'
+site.google.com: search
+v1.2.3: version
+127.0.0.1: localhost
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('search', $result['site.google.com']);
+        self::assertSame('version', $result['v1.2.3']);
+        self::assertSame('localhost', $result['127.0.0.1']);
+    }
+
+    #[Test]
+    public function itDecodesValueStartingWithColon(): void
+    {
+        $yaml = 'key: :value';
+
+        $result = $this->driver->decode($yaml);
+
+        // The value is just a string starting with colon
+        self::assertSame(':value', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesNestedSequenceOfMappingsDeep(): void
+    {
+        $yaml = <<<'YAML'
+items:
+  - database:
+      name: test
+      port: 5432
+  - database:
+      name: prod
+      port: 3306
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertCount(2, $result['items']);
+        self::assertSame('test', $result['items'][0]['database']['name']);
+        self::assertSame(5432, $result['items'][0]['database']['port']);
+        self::assertSame('prod', $result['items'][1]['database']['name']);
+        self::assertSame(3306, $result['items'][1]['database']['port']);
+    }
+
+    #[Test]
+    public function itDecodesEmptyInlineMapping(): void
+    {
+        $yaml = 'data: {}';
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame([], $result['data']);
+    }
+
+    #[Test]
+    public function itDecodesEmptyInlineSequence(): void
+    {
+        $yaml = 'data: []';
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame([], $result['data']);
     }
 
     #[Test]
@@ -349,6 +516,307 @@ YAML;
         self::assertSame('false', $result['str_false']);
         self::assertSame('null', $result['str_null']);
         self::assertSame('yes', $result['str_yes']);
+    }
+
+    #[Test]
+    public function itDecodesAllDoubleQuoteEscapes(): void
+    {
+        $yaml = <<<'YAML'
+null_char: "\0"
+alert: "\a"
+backspace: "\b"
+tab: "\t"
+newline: "\n"
+vtab: "\v"
+formfeed: "\f"
+carriage: "\r"
+escape: "\e"
+space: "\ "
+dblquote: "\""
+fslash: "\/"
+backslash: "\\\\"
+nextline: "\N"
+nbsp: "\_"
+linesep: "\L"
+paragraph: "\P"
+hex: "\x41"
+unicode: "\u00E9"
+unicode4: "\u2603"
+long: "\U0001F600"
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame("\x00", $result['null_char']);
+        self::assertSame("\x07", $result['alert']);
+        self::assertSame("\x08", $result['backspace']);
+        self::assertSame("\t", $result['tab']);
+        self::assertSame("\n", $result['newline']);
+        self::assertSame("\x0B", $result['vtab']);
+        self::assertSame("\x0C", $result['formfeed']);
+        self::assertSame("\r", $result['carriage']);
+        self::assertSame("\x1B", $result['escape']);
+        self::assertSame(' ', $result['space']);
+        self::assertSame('"', $result['dblquote']);
+        self::assertSame('/', $result['fslash']);
+        // 4 backslashes in YAML double-quotes = 2 literal backslashes
+        self::assertIsString($result['backslash']);
+        self::assertSame(2, \strlen($result['backslash']));
+        self::assertSame("\u{0085}", $result['nextline']);
+        self::assertSame("\u{00A0}", $result['nbsp']);
+        self::assertSame("\u{2028}", $result['linesep']);
+        self::assertSame("\u{2029}", $result['paragraph']);
+        self::assertSame('A', $result['hex']);
+        self::assertSame("\u{00E9}", $result['unicode']); // é = U+00E9
+
+        // Snowman (\u2603) and emoji (\U0001F600) — check they decode to multi-byte strings
+        self::assertIsString($result['unicode4']);
+        self::assertSame(3, \strlen($result['unicode4'])); // U+2603 is 3 bytes UTF-8
+        self::assertSame("\u{2603}", $result['unicode4']); // actual byte value
+        self::assertIsString($result['long']);
+        self::assertSame(4, \strlen($result['long']));     // U+1F600 is 4 bytes UTF-8
+        self::assertSame("\u{1F600}", $result['long']);   // actual byte value
+    }
+
+    #[Test]
+    public function itDecodesSingleQuotesContainingDoubleQuotes(): void
+    {
+        $yaml = "key: 'he said \"hello\"'";
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('he said "hello"', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesDoubleQuotesContainingSingleQuotes(): void
+    {
+        $yaml = 'key: "it\'s nice"';
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame("it's nice", $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesMixedSequenceTypes(): void
+    {
+        $yaml = <<<'YAML'
+mixed:
+  - 42
+  - hello
+  - true
+  - 3.14
+  - null
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame(42, $result['mixed'][0]);
+        self::assertSame('hello', $result['mixed'][1]);
+        self::assertTrue($result['mixed'][2]);
+        self::assertSame(3.14, $result['mixed'][3]);
+        self::assertNull($result['mixed'][4]);
+    }
+
+    #[Test]
+    public function itDecodesBareDashAtEndOfLine(): void
+    {
+        $yaml = <<<'YAML'
+list:
+  -
+    key: value
+  -
+    other: data
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertCount(2, $result['list']);
+        self::assertSame('value', $result['list'][0]['key']);
+        self::assertSame('data', $result['list'][1]['other']);
+    }
+
+    #[Test]
+    public function itDecodesCommentInsideDoubleQuotedString(): void
+    {
+        $result = $this->driver->decode('key: "text # not comment"');
+
+        self::assertSame('text # not comment', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesCommentInsideSingleQuotedString(): void
+    {
+        $result = $this->driver->decode("key: 'text # not comment'");
+
+        self::assertSame('text # not comment', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesUrlLikeValue(): void
+    {
+        $yaml = <<<'YAML'
+url: http://example.com
+secure: https://api.test.com/path?q=1
+ftp: ftp://files.example.org
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('http://example.com', $result['url']);
+        self::assertSame('https://api.test.com/path?q=1', $result['secure']);
+        self::assertSame('ftp://files.example.org', $result['ftp']);
+    }
+
+    #[Test]
+    public function itDecodesPositiveHexInteger(): void
+    {
+        $yaml = <<<'YAML'
+hex: +0xFF
+neg: -0x1A
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame(255, $result['hex']);
+        self::assertSame(-26, $result['neg']);
+    }
+
+    #[Test]
+    public function itDecodesHexWithUnderscores(): void
+    {
+        $result = $this->driver->decode('hex: 0xDE_AD_BE_EF');
+
+        self::assertSame(0xDEADBEEF, $result['hex']);
+    }
+
+    #[Test]
+    public function itDecodesFoldedBlockWithBlankLines(): void
+    {
+        $yaml = <<<'YAML'
+text: >
+  paragraph one
+
+  paragraph two
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        // Folded block converts all newlines to spaces
+        // (blank lines are stripped by normalisation before reaching block scalar parser)
+        self::assertIsString($result['text']);
+        self::assertStringContainsString("paragraph one paragraph two", $result['text']);
+    }
+
+    #[Test]
+    public function itDecodesEscapedQuoteBeforeComment(): void
+    {
+        $result = $this->driver->decode('key: "value \"# not comment"');
+
+        // The escaped quote does NOT end the string, so # is part of the value
+        self::assertSame('value "# not comment', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesInfinityVariants(): void
+    {
+        $yaml = <<<'YAML'
+dot_inf: .inf
+plus_inf: +.inf
+dot_infinity: .infinity
+plus_infinity: +.infinity
+neg_dot_inf: -.inf
+neg_infinity: -.infinity
+nan: .nan
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertTrue(\is_infinite($result['dot_inf']) && $result['dot_inf'] > 0);
+        self::assertTrue(\is_infinite($result['plus_inf']) && $result['plus_inf'] > 0);
+        self::assertTrue(\is_infinite($result['dot_infinity']) && $result['dot_infinity'] > 0);
+        self::assertTrue(\is_infinite($result['plus_infinity']) && $result['plus_infinity'] > 0);
+        self::assertTrue(\is_infinite($result['neg_dot_inf']) && $result['neg_dot_inf'] < 0);
+        self::assertTrue(\is_infinite($result['neg_infinity']) && $result['neg_infinity'] < 0);
+        self::assertTrue(\is_nan($result['nan']));
+    }
+
+    #[Test]
+    public function itDecodesCodepointAboveMaxReturnEmptyString(): void
+    {
+        // \U00110000 is above 0x10FFFF — decodeHexEscape returns ''
+        $yaml = 'key: "\\U00110000"';
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesInvalidHexEscapeAsEmptyString(): void
+    {
+        // \xZZ is not valid hex — decodeHexEscape returns ''
+        $yaml = 'key: "\\xZZ"';
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesNonStandardEscapeAsLiteralChar(): void
+    {
+        // \c is not a defined escape — default arm in match returns $next
+        $yaml = 'key: "hello\\cworld"';
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('hellocworld', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesStripCommentWithSingleQuoteAfterColon(): void
+    {
+        // Tests the $inSingle toggle in stripComment
+        $yaml = "key: 'value with # hash' # comment";
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('value with # hash', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesOctalsWithUnderscores(): void
+    {
+        $result = $this->driver->decode('octal: 0o77_77');
+
+        self::assertSame(0o7777, $result['octal']);
+    }
+
+    #[Test]
+    public function itDecodesOctalWithSign(): void
+    {
+        $yaml = <<<'YAML'
+pos: +0o77
+neg: -0o77
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame(63, $result['pos']);
+        self::assertSame(-63, $result['neg']);
+    }
+
+    #[Test]
+    public function itDecodesNullInSequenceItems(): void
+    {
+        $yaml = <<<'YAML'
+nested:
+  - null
+  - ~
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertNull($result['nested'][0]);
+        self::assertNull($result['nested'][1]);
     }
 
     // ─── Encode ────────────────────────────────────────────────────
@@ -443,6 +911,20 @@ YAML;
     }
 
     #[Test]
+    public function itEncodesDoubleQuotedWithApostrophe(): void
+    {
+        $data = [
+            "it's" => 'works',
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Key contains ' so it should use double quotes
+        self::assertStringContainsString('"it\'s":', $result);
+        self::assertStringContainsString('works', $result);
+    }
+
+    #[Test]
     public function itEncodesQuotedKeys(): void
     {
         $data = [
@@ -454,6 +936,73 @@ YAML;
 
         self::assertStringContainsString("'127.0.0.1': localhost", $result);
         self::assertStringContainsString("'spaced key': value", $result);
+    }
+
+    #[Test]
+    public function itEncodesNewlinesInStrings(): void
+    {
+        $data = [
+            'message' => "line one\nline two",
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Single-quote with literal newline (no escape processing in single quotes)
+        self::assertStringContainsString('message:', $result);
+        self::assertStringContainsString("'line one\nline two'", $result);
+    }
+
+    #[Test]
+    public function itEncodesListArrayAsSequence(): void
+    {
+        $data = ['zero', 'one'];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('- zero', $result);
+        self::assertStringContainsString('- one', $result);
+    }
+
+    #[Test]
+    public function itEncodesInlineMappingInSequence(): void
+    {
+        $data = [
+            ['name' => 'Alice', 'score' => 95],
+            ['name' => 'Bob', 'score' => 87],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('name: Alice', $result);
+        self::assertStringContainsString('score: 95', $result);
+        self::assertStringContainsString('name: Bob', $result);
+    }
+
+    #[Test]
+    public function itEncodesBoolLikeKeysAsBare(): void
+    {
+        $data = [
+            'true' => 'yes-value',
+            'false' => 'no-value',
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // 'true' and 'false' are valid bare YAML keys, so they're not quoted
+        self::assertStringContainsString('true: yes-value', $result);
+        self::assertStringContainsString('false: no-value', $result);
+    }
+
+    #[Test]
+    public function itEncodesNestedEmptyArraysAsBraces(): void
+    {
+        $data = [
+            'config' => ['nested' => []],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('nested: []', $result);
     }
 
     #[Test]
@@ -542,6 +1091,210 @@ YAML;
         $result = $this->driver->encode(['date' => $dt]);
 
         self::assertStringContainsString('date: 2026-01-15T10:30:00+00:00', $result);
+    }
+
+    #[Test]
+    public function itEncodesEmptyStringAsQuoted(): void
+    {
+        $result = $this->driver->encode(['empty' => '']);
+
+        self::assertStringContainsString("empty: ''", $result);
+    }
+
+    #[Test]
+    public function itEncodesStringWithCommaSpace(): void
+    {
+        $result = $this->driver->encode(['list' => 'a, b, c']);
+
+        self::assertStringContainsString("list: 'a, b, c'", $result);
+    }
+
+    #[Test]
+    public function itEncodesStringWithBrackets(): void
+    {
+        $data = [
+            'has_bracket' => 'value [ref]',
+            'has_brace' => 'data {key}',
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString("has_bracket: 'value [ref]'", $result);
+        self::assertStringContainsString("has_brace: 'data {key}'", $result);
+    }
+
+    #[Test]
+    public function itEncodesStringWithLeadingWhitespace(): void
+    {
+        $result = $this->driver->encode(['padded' => '  indented']);
+
+        self::assertStringContainsString("padded: '  indented'", $result);
+    }
+
+    #[Test]
+    public function itEncodesIntegerZero(): void
+    {
+        $result = $this->driver->encode(['count' => 0]);
+
+        self::assertStringContainsString('count: 0', $result);
+    }
+
+    #[Test]
+    public function itEncodesFloatWithoutDecimalPart(): void
+    {
+        $result = $this->driver->encode(['pi' => 3.0]);
+
+        self::assertStringContainsString('pi: 3.0', $result);
+    }
+
+    #[Test]
+    public function itEncodesKeyWithSpecialCharacters(): void
+    {
+        $data = [
+            'key@host' => 'value1',
+            'data!point' => 'value2',
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString("'key@host': value1", $result);
+        self::assertStringContainsString("'data!point': value2", $result);
+    }
+
+    #[Test]
+    public function itEncodesListOfLists(): void
+    {
+        $data = [
+            'matrix' => [[1, 2], [3, 4]],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // List of lists encoded as inline sequences
+        self::assertStringContainsString('matrix: [[1, 2], [3, 4]]', $result);
+    }
+
+    #[Test]
+    public function itEncodesSequenceMappingWithThreeItems(): void
+    {
+        $data = [
+            'items' => [
+                ['x' => 1, 'y' => 2],
+                ['x' => 3, 'y' => 4],
+                ['x' => 5, 'y' => 6],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Sequence of mappings uses inline format
+        self::assertStringContainsString('items: [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }]', $result);
+    }
+
+    #[Test]
+    public function itEncodesSequenceMappingWithNestedSubArrays(): void
+    {
+        $data = [
+            'items' => [
+                ['x' => 1, 'nested' => ['a' => 'b']],
+                ['x' => 2, 'nested' => ['c' => 'd']],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Non-first items in sequence mapping with nested sub-arrays
+        self::assertStringContainsString('items:', $result);
+        self::assertStringContainsString('{ x: 1, nested: { a: b } }', $result);
+        self::assertStringContainsString('{ x: 2, nested: { c: d } }', $result);
+    }
+
+    #[Test]
+    public function itEncodesControlCharactersViaDoubleQuote(): void
+    {
+        $data = [
+            'name' => "it's, a\x01test\x02end",
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // ', ' triggers $needsQuoting, ' forces double-quote mode
+        // Control chars become \xNN escapes (single-digit: \x1 not \x01)
+        self::assertStringContainsString('name: "it\'s, a\\x1test\\x2end"', $result);
+    }
+
+    #[Test]
+    public function itEncodesDelCharacterAsHex(): void
+    {
+        // Use a value with both a single quote and ', ' to force double-quote mode,
+        // then DEL (0x7F) gets encoded as \x7F by escapeDoubleQuoted
+        $data = [
+            'name' => "test\x7Fend's, more",
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // ', ' triggers $needsQuoting, ' forces double-quote mode,
+        // DEL (0x7F) encoded as \x7F via escapeDoubleQuoted
+        self::assertStringContainsString('\\x7F', $result);
+    }
+
+    #[Test]
+    public function itEncodesNullValueAsTilde(): void
+    {
+        $result = $this->driver->encode(['key' => null]);
+
+        self::assertStringContainsString('key: ~', $result);
+    }
+
+    #[Test]
+    public function itEncodesNonArrayData(): void
+    {
+        // encodeNode with non-array — only first element used
+        $data = [
+            'scalar' => 'just a string',
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('scalar: just a string', $result);
+    }
+
+    #[Test]
+    public function itEncodesMappingValueWithInlineList(): void
+    {
+        // encodeMappingValue with sub-value that is a list (array_is_list)
+        $data = [
+            'config' => [
+                'modes' => [1, 2, 3],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('config:', $result);
+        self::assertStringContainsString('  modes: [1, 2, 3]', $result);
+    }
+
+    #[Test]
+    public function itEncodesDeeplyNestedMappings(): void
+    {
+        $data = [
+            'a' => [
+                'b' => [
+                    'c' => [
+                        'value' => 'deep',
+                    ],
+                ],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Verify deeply nested structure
+        $lines = \explode("\n", \trim($result));
+        self::assertStringContainsString('a:', $result);
+        self::assertStringContainsString('    value: deep', $result);
     }
 
     // ─── Round-Trip ────────────────────────────────────────────────
@@ -746,5 +1499,66 @@ YAML;
 
         // Multi-document: parser should handle --- separators
         self::assertSame('second', $result['key']);
+    }
+
+    // ─── Branch Coverage ───────────────────────────────────────────
+
+    #[Test]
+    public function itDecodesValuesWithSlashesAndAtSigns(): void
+    {
+        // Tests $next === '/' and $next === '@' in findColonOutsideQuotes
+        // URL with :// to exercise '/' branch, email with @ to exercise '@' branch
+        $yaml = <<<'YAML'
+url: http://example.com
+proxy: socks5://proxy.local
+email: user@example.com
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('http://example.com', $result['url']);
+        self::assertSame('socks5://proxy.local', $result['proxy']);
+        self::assertSame('user@example.com', $result['email']);
+    }
+
+    #[Test]
+    public function itDecodesBlockScalarWithOnlyBlanks(): void
+    {
+        // Tests $last >= 0 vs $last > 0 at line ~538
+        // Block scalar with all blank lines → $last starts at 0
+        $yaml = <<<'YAML'
+text: |
+
+
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('', $result['text']);
+    }
+
+    #[Test]
+    public function itDecodesKeyWithColonAfterInlineStuff(): void
+    {
+        // Tests colon at position 0: $i === 0 branch at line ~903
+        $yaml = <<<'YAML'
+:starting-with-colon: preserved
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('preserved', $result[':starting-with-colon']);
+    }
+
+    #[Test]
+    public function itDecodesDoubleQuotedWithEscapedBackslash(): void
+    {
+        // Tests $escape toggle in findColonOutsideQuotes (line ~846)
+        // Double-quoted string with escaped backslash containing colon
+        $yaml = 'key: "value\\\\:escaped"';
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('value\\:escaped', $result['key']);
     }
 }

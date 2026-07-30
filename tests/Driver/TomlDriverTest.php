@@ -480,6 +480,22 @@ TOML;
     }
 
     #[Test]
+    public function itEncodesFlatNestedArrayAsInlineTable(): void
+    {
+        // Flat nested structure (no sub-arrays) → encoded as inline table, not [table] header
+        $data = [
+            'server' => [
+                'host' => 'localhost',
+                'port' => 8080,
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('server = { host = "localhost", port = 8080 }', $result);
+    }
+
+    #[Test]
     public function itEncodesEmptyArrayAsEmptyString(): void
     {
         $result = $this->driver->encode([]);
@@ -655,6 +671,98 @@ TOML;
     }
 
     #[Test]
+    public function itDecodesMultiLineBasicWithBackslashAfterQuote(): void
+    {
+        $toml = <<<'TOML'
+str = """
+line one \
+line two"""
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('line one line two', $result['str']);
+    }
+
+
+
+    #[Test]
+    public function itDecodesMultiLineLiteralEmptyContent(): void
+    {
+        $toml = <<<'TOML'
+str = '''
+'''
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('', $result['str']);
+    }
+
+    #[Test]
+    public function itDecodesInlineTableWithNestedArray(): void
+    {
+        $toml = 'config = { tags = ["a", "b"], count = 2 }';
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame(['a', 'b'], $result['config']['tags']);
+        self::assertSame(2, $result['config']['count']);
+    }
+
+    #[Test]
+    public function itDecodesTableAfterDottedKeys(): void
+    {
+        $toml = <<<'TOML'
+animal.dog.name = "Fido"
+
+[animal.dog]
+breed = "Labrador"
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('Fido', $result['animal']['dog']['name']);
+        self::assertSame('Labrador', $result['animal']['dog']['breed']);
+    }
+
+    #[Test]
+    public function itDecodesArrayOfTablesWithDeepNesting(): void
+    {
+        $toml = <<<'TOML'
+[[fruits]]
+name = "Apple"
+
+[fruits.varieties]
+count = 5
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('Apple', $result['fruits'][0]['name']);
+        self::assertSame(5, $result['fruits']['varieties']['count']);
+    }
+
+    #[Test]
+    public function itDecodesStringWithTabEscape(): void
+    {
+        $result = $this->driver->decode("key = 'value\ttab'");
+
+        // The PHP \t becomes literal TAB in the TOML string
+        // TOML literal strings preserve backslashes, but there is none here
+        self::assertSame("value\ttab", $result['key']);
+    }
+
+    #[Test]
+    public function itThrowsOnScalarOverwriteAsTable(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Cannot define table');
+
+        $this->driver->decode("title = 'test'\n[title]\nname = 'nested'");
+    }
+
+    #[Test]
     public function itRoundTripsIntegers(): void
     {
         $data = [
@@ -674,6 +782,358 @@ TOML;
     }
 
     // ─── Real-World Example ────────────────────────────────────────
+
+    #[Test]
+    public function itDecodesDeepDottedKeys(): void
+    {
+        $toml = <<<'TOML'
+a.b.c = "deep"
+x.y.z.w = 1234
+top.mid.bottom = true
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('deep', $result['a']['b']['c']);
+        self::assertSame(1234, $result['x']['y']['z']['w']);
+        self::assertTrue($result['top']['mid']['bottom']);
+    }
+
+    #[Test]
+    public function itDecodesDottedKeysWithQuotedSegments(): void
+    {
+        $toml = <<<'TOML'
+"a"."b"."c" = "all-quoted"
+a."b.c".d = "mixed"
+"dotted.key".value = 42
+site."google.com" = true
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('all-quoted', $result['a']['b']['c']);
+        self::assertSame('mixed', $result['a']['b.c']['d']);
+        self::assertSame(42, $result['dotted.key']['value']);
+        self::assertTrue($result['site']['google.com']);
+    }
+
+    #[Test]
+    public function itDecodesDottedKeysInsideTable(): void
+    {
+        $toml = <<<'TOML'
+[server]
+host.name = "db.example.com"
+"connection"."pool".size = 10
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('db.example.com', $result['server']['host']['name']);
+        self::assertSame(10, $result['server']['connection']['pool']['size']);
+    }
+
+    #[Test]
+    public function itThrowsOnDottedKeyCollisionWithScalar(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Cannot extend key');
+
+        $this->driver->decode("a = 1\na.b = 2");
+    }
+
+    #[Test]
+    public function itDecodesArrayOfTablesWithDottedPaths(): void
+    {
+        $toml = <<<'TOML'
+[[a.b.c]]
+name = "first"
+
+[[a.b.c]]
+name = "second"
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertCount(2, $result['a']['b']['c']);
+        self::assertSame('first', $result['a']['b']['c'][0]['name']);
+        self::assertSame('second', $result['a']['b']['c'][1]['name']);
+    }
+
+    #[Test]
+    public function itDecodesArrayOfTablesWithMultipleFields(): void
+    {
+        $toml = <<<'TOML'
+[[items]]
+name = "item1"
+price = 10.99
+stock = true
+
+[[items]]
+name = "item2"
+price = 5.49
+stock = false
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertCount(2, $result['items']);
+        self::assertSame('item1', $result['items'][0]['name']);
+        self::assertSame(10.99, $result['items'][0]['price']);
+        self::assertTrue($result['items'][0]['stock']);
+        self::assertSame('item2', $result['items'][1]['name']);
+        self::assertSame(5.49, $result['items'][1]['price']);
+        self::assertFalse($result['items'][1]['stock']);
+    }
+
+    #[Test]
+    public function itDecodesArrayOfTablesMixedWithTable(): void
+    {
+        $toml = <<<'TOML'
+[app]
+name = "MyApp"
+
+[[app.services]]
+name = "auth"
+
+[[app.services]]
+name = "api"
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertSame('MyApp', $result['app']['name']);
+        self::assertCount(2, $result['app']['services']);
+        self::assertSame('auth', $result['app']['services'][0]['name']);
+        self::assertSame('api', $result['app']['services'][1]['name']);
+    }
+
+    #[Test]
+    public function itDecodesArrayOfTablesWithInlineValue(): void
+    {
+        $toml = <<<'TOML'
+[[connections]]
+host = "db1.example.com"
+config = { pool = 10, timeout = 30 }
+
+[[connections]]
+host = "db2.example.com"
+config = { pool = 5, timeout = 60 }
+TOML;
+
+        $result = $this->driver->decode($toml);
+
+        self::assertCount(2, $result['connections']);
+        self::assertSame('db1.example.com', $result['connections'][0]['host']);
+        self::assertSame(['pool' => 10, 'timeout' => 30], $result['connections'][0]['config']);
+        self::assertSame('db2.example.com', $result['connections'][1]['host']);
+        self::assertSame(['pool' => 5, 'timeout' => 60], $result['connections'][1]['config']);
+    }
+
+    #[Test]
+    public function itThrowsOnInvalidHexInteger(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Invalid hex integer');
+
+        $this->driver->decode('key = 0xGGG');
+    }
+
+    #[Test]
+    public function itThrowsOnInvalidOctalInteger(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Invalid octal integer');
+
+        $this->driver->decode('key = 0o89');
+    }
+
+    #[Test]
+    public function itThrowsOnInvalidBinaryInteger(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Invalid binary integer');
+
+        $this->driver->decode('key = 0b12');
+    }
+
+    #[Test]
+    public function itThrowsOnEmptyKey(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Empty key');
+
+        $this->driver->decode(' = 1');
+    }
+
+    #[Test]
+    public function itThrowsOnEmptyValue(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Empty value');
+
+        $this->driver->decode('key = ');
+    }
+
+    #[Test]
+    public function itThrowsOnInvalidInlineTableSyntax(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Invalid inline table syntax');
+
+        $this->driver->decode('val = { key }');
+    }
+
+    #[Test]
+    public function itEncodesTableHeadersForNestedStructures(): void
+    {
+        $data = [
+            'server' => [
+                'host' => 'localhost',
+                'port' => 8080,
+                'config' => [
+                    'enabled' => true,
+                ],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Nested array inside triggers [server] header
+        self::assertStringContainsString('[server]', $result);
+        self::assertStringContainsString('host = "localhost"', $result);
+        self::assertStringContainsString('port = 8080', $result);
+        self::assertStringContainsString('enabled = true', $result);
+    }
+
+    #[Test]
+    public function itEncodesDeeplyNestedTables(): void
+    {
+        $data = [
+            'a' => [
+                'b' => [
+                    'c' => 'deep-value',
+                    'd' => ['e' => 42],
+                ],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('[a.b]', $result);
+        self::assertStringContainsString('c = "deep-value"', $result);
+        self::assertStringContainsString('e = 42', $result);
+    }
+
+    #[Test]
+    public function itEncodesArrayOfTablesAsSeparateSections(): void
+    {
+        $data = [
+            'entries' => [
+                ['id' => 1, 'active' => true],
+                ['id' => 2, 'active' => false],
+                ['id' => 3],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('[[entries]]', $result);
+        self::assertStringContainsString('id = 1', $result);
+        self::assertStringContainsString('active = true', $result);
+        self::assertStringContainsString('id = 2', $result);
+        self::assertStringContainsString('active = false', $result);
+        self::assertStringContainsString('id = 3', $result);
+    }
+
+    #[Test]
+    public function itEncodesArrayOfTablesWithMultipleKeys(): void
+    {
+        $data = [
+            'site' => [
+                'pages' => [
+                    ['path' => '/home', 'title' => 'Home Page'],
+                    ['path' => '/about', 'title' => 'About Us'],
+                ],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('[site]', $result);
+        self::assertStringContainsString('[[site.pages]]', $result);
+    }
+
+    #[Test]
+    public function itEncodesNewlinesAndTabsInStrings(): void
+    {
+        $data = [
+            'message' => "line1\nline2",
+            'data' => "col1\tcol2",
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('message = "line1\\nline2"', $result);
+        self::assertStringContainsString('data = "col1\\tcol2"', $result);
+    }
+
+    #[Test]
+    public function itEncodesKeysWithSpecialCharsAsDottedKeys(): void
+    {
+        $data = [
+            'server' => [
+                'host.name' => 'localhost',
+                'config file' => 'test.conf',
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // No nested arrays inside server → encoded as inline table
+        self::assertStringContainsString('server = {', $result);
+        self::assertStringContainsString('"host.name"', $result);
+        self::assertStringContainsString('"config file"', $result);
+    }
+
+    #[Test]
+    public function itRoundTripsDeepDottedKeys(): void
+    {
+        $original = <<<'TOML'
+app.name = "MyApp"
+app.version.major = 2
+app.version.minor = 1
+app.config.debug = true
+TOML;
+
+        $data = $this->driver->decode($original);
+        $encoded = $this->driver->encode($data);
+        $reDecoded = $this->driver->decode($encoded);
+
+        self::assertSame('MyApp', $reDecoded['app']['name']);
+        self::assertSame(2, $reDecoded['app']['version']['major']);
+        self::assertSame(1, $reDecoded['app']['version']['minor']);
+        self::assertTrue($reDecoded['app']['config']['debug']);
+    }
+
+    #[Test]
+    public function itRoundTripsArrayOfTablesWithDottedPath(): void
+    {
+        $original = <<<'TOML'
+[[a.b.c]]
+key = "first"
+
+[[a.b.c]]
+key = "second"
+TOML;
+
+        $data = $this->driver->decode($original);
+        $encoded = $this->driver->encode($data);
+        $reDecoded = $this->driver->decode($encoded);
+
+        self::assertCount(2, $reDecoded['a']['b']['c']);
+        self::assertSame('first', $reDecoded['a']['b']['c'][0]['key']);
+        self::assertSame('second', $reDecoded['a']['b']['c'][1]['key']);
+    }
 
     #[Test]
     public function itDecodesRealWorldConfig(): void
@@ -740,6 +1200,108 @@ TOML;
         $this->expectExceptionMessage('Cannot define array of tables');
 
         $this->driver->decode("foo = 1\n[[foo.bar]]\nkey = 2");
+    }
+
+    // ─── Encode: Branch Coverage ────────────────────────────────────
+
+    #[Test]
+    public function itEncodesMixedSimpleAndSubTables(): void
+    {
+        $data = [
+            'title' => 'Config',
+            'server' => [
+                'host' => 'localhost',
+                'config' => [
+                    'debug' => true,
+                ],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('title = "Config"', $result);
+        self::assertStringContainsString('[server]', $result);
+        self::assertStringContainsString('host = "localhost"', $result);
+        self::assertStringContainsString('debug = true', $result);
+    }
+
+    #[Test]
+    public function itEncodesMixedSimpleAndArrayTables(): void
+    {
+        $data = [
+            'title' => 'Config',
+            'products' => [
+                ['name' => 'Hammer', 'sku' => 123],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('title = "Config"', $result);
+        self::assertStringContainsString('[[products]]', $result);
+        self::assertStringContainsString('name = "Hammer"', $result);
+    }
+
+    #[Test]
+    public function itEncodesArrayOfTablesWithMultipleSections(): void
+    {
+        $data = [
+            'products' => [
+                ['name' => 'Hammer'],
+                ['name' => 'Nail'],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        self::assertStringContainsString('[[products]]', $result);
+        self::assertStringContainsString('name = "Hammer"', $result);
+        self::assertStringContainsString('name = "Nail"', $result);
+    }
+
+    #[Test]
+    public function itEncodesDeepFiveLevelNesting(): void
+    {
+        // 5 levels deep to exercise recursive encodeTable with prefix
+        $data = [
+            'a' => [
+                'b' => [
+                    'c' => [
+                        'd' => [
+                            'e' => [
+                                'f' => [
+                                    'g' => 'deep',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $result = $this->driver->encode($data);
+
+        // Innermost level without sub-arrays becomes inline table
+        self::assertStringContainsString('[a.b.c.d.e]', $result);
+        self::assertStringContainsString('f = { g = "deep" }', $result);
+    }
+
+    // ─── Decode: Branch Coverage ────────────────────────────────────
+
+    #[Test]
+    public function itDecodesLiteralMultiLineInline(): void
+    {
+        $result = $this->driver->decode("key = '''value'''");
+
+        self::assertSame('value', $result['key']);
+    }
+
+    #[Test]
+    public function itDecodesBasicMultiLineInline(): void
+    {
+        $result = $this->driver->decode('key = """value"""');
+
+        self::assertSame('value', $result['key']);
     }
 
     // (indent parameter reserved for future use)
