@@ -102,13 +102,13 @@ final class CsvDriver implements DriverInterface
         $this->maxRows = $maxRows;
     }
 
-    #[Override]
+    #[\Override]
     public function supportedSyntax(): Syntax
     {
         return Syntax::CSV;
     }
 
-    #[Override]
+    #[\Override]
     public function decode(string $input): array
     {
         $trimmed = \trim($input);
@@ -169,7 +169,7 @@ final class CsvDriver implements DriverInterface
         );
     }
 
-    #[Override]
+    #[\Override]
     public function encode(array $data): string
     {
         if ($data === []) {

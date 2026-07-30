@@ -13,7 +13,8 @@ use Monkeyslegion\PolySyntax\Enum\Syntax;
 use Monkeyslegion\PolySyntax\Transformer;
 
 /**
- * Runs encode/decode benchmarks across all drivers and payload sizes.
+ * Runs encode/decode benchmarks across all drivers and payload sizes,
+ * measuring both timing and memory consumption.
  */
 final class BenchmarkRunner
 {
@@ -80,6 +81,8 @@ final class BenchmarkRunner
                         minMs: $encodeResult['min'],
                         maxMs: $encodeResult['max'],
                         bytes: $encodeResult['bytes'],
+                        peakMemoryBytes: $encodeResult['peakMem'],
+                        memoryChangeBytes: $encodeResult['memChange'],
                     );
 
                     if ($encodeResult['output'] !== '') {
@@ -96,6 +99,8 @@ final class BenchmarkRunner
                             minMs: $decodeResult['min'],
                             maxMs: $decodeResult['max'],
                             bytes: $encodeResult['bytes'],
+                            peakMemoryBytes: $decodeResult['peakMem'],
+                            memoryChangeBytes: $decodeResult['memChange'],
                         );
                     }
                 }
@@ -106,59 +111,118 @@ final class BenchmarkRunner
     }
 
     /**
+     * Benchmark encoding: measure timing + memory.
+     *
      * @param  array<mixed> $data
-     * @return array{avg: float, min: float, max: float, bytes: int, output: string}
+     * @return array{avg: float, min: float, max: float, bytes: int, output: string,
+     *   peakMem: int, memChange: int}
      */
     private function benchmarkEncode(array $data, Syntax $syntax): array
     {
         $times = [];
+        $peakMem = 0;
+        $memChange = 0;
 
         for ($i = 0; $i < self::WARMUP + self::ITERATIONS; $i++) {
+            $memBefore = \memory_get_usage(true);
             $start = \hrtime(true);
             $output = $this->transformer->encode($data, $syntax);
             $end = \hrtime(true);
+            $memAfter = \memory_get_usage(true);
 
             if ($i >= self::WARMUP) {
                 $times[] = ($end - $start) / 1_000_000; // ns → ms
+                $iterationPeak = \max(\memory_get_peak_usage(true), $memAfter);
+
+                if ($iterationPeak > $peakMem) {
+                    $peakMem = $iterationPeak;
+                }
+
+                $delta = $memAfter - $memBefore;
+
+                if ($delta > $memChange) {
+                    $memChange = $delta;
+                }
             }
         }
 
         /** @var list<float> $times */
-        $count = \count($times);
+
+        if ($times === []) {
+            return [
+                'avg'       => 0.0,
+                'min'       => 0.0,
+                'max'       => 0.0,
+                'bytes'     => \strlen($output),
+                'output'    => $output,
+                'peakMem'   => $peakMem,
+                'memChange' => $memChange,
+            ];
+        }
 
         return [
-            'avg'    => $count > 0 ? \array_sum($times) / $count : 0.0,
-            'min'    => $count > 0 ? \min($times) : 0.0,
-            'max'    => $count > 0 ? \max($times) : 0.0,
-            'bytes'  => \strlen($output),
-            'output' => $output,
+            'avg'       => \array_sum($times) / \count($times),
+            'min'       => \min($times),
+            'max'       => \max($times),
+            'bytes'     => \strlen($output),
+            'output'    => $output,
+            'peakMem'   => $peakMem,
+            'memChange' => $memChange,
         ];
     }
 
     /**
-     * @return array{avg: float, min: float, max: float}
+     * Benchmark decoding: measure timing + memory.
+     *
+     * @return array{avg: float, min: float, max: float, peakMem: int, memChange: int}
      */
     private function benchmarkDecode(string $input, Syntax $syntax): array
     {
         $times = [];
+        $peakMem = 0;
+        $memChange = 0;
 
         for ($i = 0; $i < self::WARMUP + self::ITERATIONS; $i++) {
+            $memBefore = \memory_get_usage(true);
             $start = \hrtime(true);
             $this->transformer->decode($input, $syntax);
             $end = \hrtime(true);
+            $memAfter = \memory_get_usage(true);
 
             if ($i >= self::WARMUP) {
                 $times[] = ($end - $start) / 1_000_000;
+                $iterationPeak = \max(\memory_get_peak_usage(true), $memAfter);
+
+                if ($iterationPeak > $peakMem) {
+                    $peakMem = $iterationPeak;
+                }
+
+                $delta = $memAfter - $memBefore;
+
+                if ($delta > $memChange) {
+                    $memChange = $delta;
+                }
             }
         }
 
         /** @var list<float> $times */
-        $count = \count($times);
+
+        if ($times === []) {
+            return [
+                'avg'       => 0.0,
+                'min'       => 0.0,
+                'max'       => 0.0,
+                'peakMem'   => $peakMem,
+                'memChange' => $memChange,
+            ];
+        }
 
         return [
-            'avg' => $count > 0 ? \array_sum($times) / $count : 0.0,
-            'min' => $count > 0 ? \min($times) : 0.0,
-            'max' => $count > 0 ? \max($times) : 0.0,
+            'avg'       => \array_sum($times) / \count($times),
+            'min'       => \min($times),
+            'max'       => \max($times),
+            'peakMem'   => $peakMem,
+            'memChange' => $memChange,
         ];
     }
 
@@ -187,8 +251,8 @@ final class BenchmarkRunner
 
         $output = "# Poly-Syntax Benchmark Results\n\n";
         $output .= "> _Generated " . \date('Y-m-d H:i:s') . " — PHP " . \PHP_VERSION . "_\n\n";
-        $output .= "| Driver | Size | Struct | Op | Time (ms) | Min | Max | Throughput |\n";
-        $output .= "|--------|-----:|--------|----|----------:|----:|----:|-----------:|\n";
+        $output .= "| Driver | Size | Struct | Op | Time (ms) | Min | Max | Throughput | Peak Mem | Mem Δ | Efficiency |\n";
+        $output .= "|--------|-----:|--------|----|----------:|----:|----:|-----------:|---------:|------:|-----------:|\n";
 
         foreach ($groups as $driverName => $driverResults) {
             \usort(
@@ -206,7 +270,7 @@ final class BenchmarkRunner
 
             foreach ($driverResults as $r) {
                 $output .= \sprintf(
-                    "| %s | %s | %s | %s | %.2f | %.2f | %.2f | %.2f MB/s |\n",
+                    "| %s | %s | %s | %s | %.2f | %.2f | %.2f | %.2f MB/s | %s | %s | %.2f |\n",
                     $driverName,
                     $r->size,
                     $r->struct,
@@ -215,6 +279,9 @@ final class BenchmarkRunner
                     $r->minMs,
                     $r->maxMs,
                     $r->throughputMBs(),
+                    $r->peakMemoryKB(),
+                    $r->memoryChangeKB(),
+                    $r->memoryEfficiency(),
                 );
             }
         }
