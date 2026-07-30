@@ -48,9 +48,6 @@ use Monkeyslegion\PolySyntax\Exception\DecodeException;
  */
 final class TomlStreamingDecoder implements StreamingDecoderInterface
 {
-    /** @var int Maximum nesting depth for inline structures. */
-    private const MAX_DEPTH = 64;
-
     private string $buffer = '';
     private bool $ended = false;
     private int $pos = 0;
@@ -78,9 +75,6 @@ final class TomlStreamingDecoder implements StreamingDecoderInterface
 
     /** @var string|null The key under which array-of-tables entries are collected. */
     private ?string $arrayOfTablesKey = null;
-
-    /** @var list<string> Accumulated entries for the current [[array]] group. */
-    private array $arrayOfTablesAccumulator = [];
 
     /** @var bool Whether we're currently inside a multi-line string. */
     private bool $inMultiline = false;
@@ -154,7 +148,6 @@ final class TomlStreamingDecoder implements StreamingDecoderInterface
         $this->currentTablePath = '';
         $this->isArrayOfTables = false;
         $this->arrayOfTablesKey = null;
-        $this->arrayOfTablesAccumulator = [];
         $this->inMultiline = false;
         $this->multilineType = '';
         $this->multilineContent = '';
