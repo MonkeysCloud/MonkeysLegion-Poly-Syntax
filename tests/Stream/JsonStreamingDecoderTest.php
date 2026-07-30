@@ -252,7 +252,16 @@ final class JsonStreamingDecoderTest extends TestCase
     {
         $decoder = new JsonStreamingDecoder();
 
-        $decoder->feed('[{' . "\n" . '  "user": {' . "\n" . '    "name": "Alice",' . "\n" . '    "roles": ["admin", {' . "\n" . '      "permission": "write"' . "\n" . '    }]' . "\n" . '  }' . "\n" . '}]');
+        $json = '[{' . "\n"
+            . '  "user": {' . "\n"
+            . '    "name": "Alice",' . "\n"
+            . '    "roles": ["admin", {' . "\n"
+            . '      "permission": "write"' . "\n"
+            . '    }]' . "\n"
+            . '  }' . "\n"
+            . '}]';
+
+        $decoder->feed($json);
         $decoder->end();
 
         $row = $decoder->next();
