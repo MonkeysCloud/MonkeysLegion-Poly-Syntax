@@ -892,6 +892,54 @@ The coefficients are derived from empirical measurements of GPT-family tokenizer
 
 ---
 
+## 🏎️ Benchmark Reference
+
+> _Generated on PHP 8.4.11, Linux. Payload: 1 MB tabular data (10 columns, ~8,000 rows)._
+> _Run `composer benchmark` to reproduce on your hardware._
+
+### Throughput Comparison (1 MB Tabular)
+
+| Driver | Encode | Decode | Peak Memory (encode) |
+|--------|-------:|-------:|--------------------:|
+| **JSON** 🥇 | **122.72 MB/s** | **78.31 MB/s** | 55.0 MB |
+| **CSV** 🥈 | 8.51 MB/s | 4.86 MB/s | 62.9 MB |
+| **XML** 🥉 | 9.67 MB/s | 3.23 MB/s | 62.9 MB |
+| **YAML** | 3.12 MB/s | 0.72 MB/s | 64.5 MB |
+| **TOML** | 2.74 MB/s | 0.45 MB/s | 64.7 MB |
+
+### JSON Speed by Payload Size
+
+| Size | Structure | Encode | Decode |
+|------|-----------|-------:|-------:|
+| 1 KB | flat | 152.69 MB/s | 46.30 MB/s |
+| 10 KB | flat | 114.76 MB/s | 71.58 MB/s |
+| 100 KB | flat | 142.10 MB/s | 95.56 MB/s |
+| 1 MB | flat | 127.55 MB/s | 76.49 MB/s |
+| 1 MB | tabular | 122.72 MB/s | 78.31 MB/s |
+| 1 MB | nested | 146.56 MB/s | 54.56 MB/s |
+
+### Memory Profile (Peak Usage)
+
+| Driver | 1 KB | 10 KB | 100 KB | 1 MB |
+|--------|-----:|------:|------:|-----:|
+| **JSON** | 8.0 MB | 8.0 MB | 10–14 MB | 33–65 MB |
+| **XML** | 8.0 MB | 8.0 MB | 10–14 MB | 33–65 MB |
+| **CSV** | 8.0 MB | 8.0 MB | 12 MB | 62.9 MB |
+| **YAML** | 8.0 MB | 8.0 MB | 12–14 MB | 51–65 MB |
+| **TOML** | 8.0 MB | 8.0 MB | 12–14 MB | 55–65 MB |
+
+> Peak memory is determined primarily by the PHP runtime's memory pool (`memory_get_usage(true)`), not by data size alone. The minimum baseline is ~8 MB per process.
+
+### Reproduce Locally
+
+```bash
+# Run the full benchmark suite (all drivers, 4 sizes, 3 structures, memory profiling)
+# WARNING: Full run takes ~2–4 minutes
+composer benchmark
+```
+
+---
+
 ## 🧑‍💻 Development
 
 ```bash
@@ -906,10 +954,10 @@ composer check
 composer quality-report
 
 # Or individual checks
-composer test              # PHPUnit (217+ tests)
+composer test              # PHPUnit (382+ tests)
 composer analyse           # PHPStan Level 9
 composer cs-check          # PSR-12 code style
-composer infection         # Mutation testing (MSI ≥ 90%)
+composer infection         # Mutation testing (MSI ≥ 82%)
 composer test:coverage     # Coverage report
 ```
 
