@@ -55,8 +55,19 @@ final class YamlDriver implements DriverInterface
      */
     private const INDENT = 2;
 
-    public function __construct()
-    {
+    /**
+     * Maximum nesting depth for decode/encode.
+     */
+    private readonly int $maxDepth;
+
+    /**
+     * @param int $maxDepth Maximum nesting depth (default 128). Throws
+     *                       DecodeException when exceeded during parsing.
+     */
+    public function __construct(
+        int $maxDepth = 128,
+    ) {
+        $this->maxDepth = \max(1, $maxDepth);
     }
 
     #[\Override]
@@ -203,6 +214,9 @@ final class YamlDriver implements DriverInterface
         ];
         $blockScalar = null;
 
+        // Track nesting depth to enforce maxDepth limit
+        $currentDepth = 0;
+
         $i = 0;
         $lineCount = \count($lines);
 
@@ -239,11 +253,23 @@ final class YamlDriver implements DriverInterface
                 }
 
                 \array_pop($stack);
+                $currentDepth--;
             }
 
             $top = &$stack[\count($stack) - 1];
 
             // Sequence item: "- value" or "- "
+            // Enforce depth limit before pushing new frames
+            if ($currentDepth >= $this->maxDepth) {
+                throw new DecodeException(
+                    \sprintf(
+                        'Maximum nesting depth of %d exceeded near line %d',
+                        $this->maxDepth,
+                        $i + 1,
+                    ),
+                );
+            }
+
             if (\str_starts_with($content, '- ')) {
                 $valuePart = \substr($content, 2);
                 $i = $this->parseSequenceItem(
@@ -264,6 +290,7 @@ final class YamlDriver implements DriverInterface
                 $newIdx = \count($top['container']);
                 $top['container'][] = [];
                 $stack[] = $this->makeFrame($top['container'][$newIdx], true, $indent + 1, null);
+                $currentDepth++;
                 $i++;
                 continue;
             }
@@ -297,6 +324,7 @@ final class YamlDriver implements DriverInterface
                     $key = $this->unquoteString($key);
                     $top['container'][$key] = [];
                     $stack[] = $this->makeFrame($top['container'][$key], false, $indent + 1, null);
+                    $currentDepth++;
                     $i++;
                     continue;
                 }
@@ -377,6 +405,19 @@ final class YamlDriver implements DriverInterface
             return $lineIndex;
         }
 
+        // Depth check before any stack push
+        $frameDepth = \count($stack);
+
+        if ($frameDepth >= $this->maxDepth) {
+            throw new DecodeException(
+                \sprintf(
+                    'Maximum nesting depth of %d exceeded near line %d',
+                    $this->maxDepth,
+                    $lineIndex + 1,
+                ),
+            );
+        }
+
         // Block scalar as sequence item
         if ($valuePart === '|' || $valuePart === '>') {
             $top['container'][] = '';
@@ -432,6 +473,18 @@ final class YamlDriver implements DriverInterface
                     false,
                     $indent + self::INDENT,
                     null,
+                );
+            }
+
+            $frameDepth = \count($stack);
+
+            if ($frameDepth >= $this->maxDepth) {
+                throw new DecodeException(
+                    \sprintf(
+                        'Maximum nesting depth of %d exceeded near line %d',
+                        $this->maxDepth,
+                        $lineIndex + 1,
+                    ),
                 );
             }
 

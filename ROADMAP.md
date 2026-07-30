@@ -117,11 +117,11 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
   - [ ] CSV streaming for large datasets
   - [ ] JSON streaming via `json_decode($chunk, true)` with state machine
 
-- [ ] **Edge Case Hardening**
-  - [ ] Deeply nested structures (configurable depth limits)
-  - [ ] Unicode and multi-byte character handling
-  - [ ] Binary-safe string processing
-  - [ ] Empty and null input handling
+- [x] **Edge Case Hardening**
+  - [x] Deeply nested structures (configurable depth limits)
+  - [x] Unicode and multi-byte character handling
+  - [x] Binary-safe string processing
+  - [x] Empty and null input handling
 
 - [ ] **Framework Integration**
   - [ ] Laravel `Str` macro / facade

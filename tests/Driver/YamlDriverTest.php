@@ -1561,4 +1561,127 @@ YAML;
 
         self::assertSame('value\\:escaped', $result['key']);
     }
+
+    // ─── Edge Case: Depth Limit ────────────────────────────────────
+
+    #[Test]
+    public function itThrowsOnExceedingMaxDepthWithSequence(): void
+    {
+        $driver = new YamlDriver(maxDepth: 3);
+
+        $yaml = <<<'YAML'
+a:
+  b:
+    c:
+      d:
+        e: too_deep
+YAML;
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Maximum nesting depth of 3 exceeded');
+
+        $driver->decode($yaml);
+    }
+
+    #[Test]
+    public function itThrowsOnExceedingMaxDepthWithBareDash(): void
+    {
+        $driver = new YamlDriver(maxDepth: 2);
+
+        $yaml = <<<'YAML'
+list:
+  -
+    nested:
+      too: deep
+YAML;
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Maximum nesting depth of 2 exceeded');
+
+        $driver->decode($yaml);
+    }
+
+    #[Test]
+    public function itHandlesDepthWithinLimit(): void
+    {
+        $driver = new YamlDriver(maxDepth: 5);
+
+        $yaml = <<<'YAML'
+a:
+  b:
+    c:
+      value: ok
+YAML;
+
+        $result = $driver->decode($yaml);
+
+        self::assertSame('ok', $result['a']['b']['c']['value']);
+    }
+
+    #[Test]
+    public function itDecodesDepthExactlyAtLimit(): void
+    {
+        $driver = new YamlDriver(maxDepth: 3);
+
+        $yaml = <<<'YAML'
+a:
+  b:
+    value: at_limit
+YAML;
+
+        $result = $driver->decode($yaml);
+
+        self::assertSame('at_limit', $result['a']['b']['value']);
+    }
+
+    // ─── Edge Case: Multi-byte / Unicode ───────────────────────────
+
+    #[Test]
+    public function itRoundTripsUnicodeStrings(): void
+    {
+        $data = [
+            'emoji' => '🚀 PHP 8.4',
+            'japanese' => 'こんにちは世界',
+            'accents' => 'Élève à l\'école',
+            'math' => '∑∫∂√π',
+        ];
+
+        $encoded = $this->driver->encode($data);
+        $decoded = $this->driver->decode($encoded);
+
+        self::assertSame($data['emoji'], $decoded['emoji']);
+        self::assertSame($data['japanese'], $decoded['japanese']);
+        self::assertSame($data['accents'], $decoded['accents']);
+        self::assertSame($data['math'], $decoded['math']);
+    }
+
+    #[Test]
+    public function itDecodesYamlWithUnicodeKeys(): void
+    {
+        $yaml = <<<'YAML'
+"emoji_key": value
+日本語: テスト
+café: 42
+YAML;
+
+        $result = $this->driver->decode($yaml);
+
+        self::assertSame('value', $result['emoji_key']);
+        self::assertSame('テスト', $result['日本語']);
+        self::assertSame(42, $result['café']);
+    }
+
+    #[Test]
+    public function itEncodesAndDecodesNullByte(): void
+    {
+        $data = [
+            'binary' => "before\x00after",
+        ];
+
+        $encoded = $this->driver->encode($data);
+        $decoded = $this->driver->decode($encoded);
+
+        // Null byte should be preserved through round-trip
+        self::assertSame("before\x00after", $decoded['binary']);
+    }
 }

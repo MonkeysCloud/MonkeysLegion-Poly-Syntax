@@ -44,8 +44,19 @@ use Monkeyslegion\PolySyntax\Exception\DecodeException;
  */
 final class TomlDriver implements DriverInterface
 {
-    public function __construct()
-    {
+    /**
+     * Maximum nesting depth for table resolution and inline structures.
+     */
+    private readonly int $maxDepth;
+
+    /**
+     * @param int $maxDepth Maximum nesting depth (default 64). Throws
+     *                       DecodeException when exceeded during parsing.
+     */
+    public function __construct(
+        int $maxDepth = 64,
+    ) {
+        $this->maxDepth = \max(1, $maxDepth);
     }
 
     #[\Override]
@@ -556,6 +567,16 @@ final class TomlDriver implements DriverInterface
         mixed $value,
         int $lineNumber,
     ): void {
+        if (\count($keys) > $this->maxDepth) {
+            throw new DecodeException(
+                \sprintf(
+                    'Maximum nesting depth of %d exceeded near line %d',
+                    $this->maxDepth,
+                    $lineNumber,
+                ),
+            );
+        }
+
         $cursor = &$target;
 
         for ($k = 0; $k < \count($keys) - 1; $k++) {
@@ -1008,6 +1029,16 @@ final class TomlDriver implements DriverInterface
      */
     private function &ensureTablePath(array &$root, array $keys): array
     {
+        if (\count($keys) > $this->maxDepth) {
+            throw new DecodeException(
+                \sprintf(
+                    'Maximum table nesting depth of %d exceeded for path "%s"',
+                    $this->maxDepth,
+                    \implode('.', $keys),
+                ),
+            );
+        }
+
         $current = &$root;
 
         foreach ($keys as $key) {
@@ -1037,6 +1068,16 @@ final class TomlDriver implements DriverInterface
      */
     private function &ensureArrayOfTablesPath(array &$root, array $keys): array
     {
+        if (\count($keys) > $this->maxDepth) {
+            throw new DecodeException(
+                \sprintf(
+                    'Maximum table nesting depth of %d exceeded for path "%s"',
+                    $this->maxDepth,
+                    \implode('.', $keys),
+                ),
+            );
+        }
+
         $current = &$root;
 
         foreach ($keys as $key) {
@@ -1319,6 +1360,11 @@ final class TomlDriver implements DriverInterface
      */
     private function encodeBasicString(string $value): string
     {
+        // Handle null bytes: TOML doesn't allow null bytes in strings
+        if (\str_contains($value, "\x00")) {
+            $value = \str_replace("\x00", '', $value);
+        }
+
         $result = '';
         $len = \strlen($value);
 
