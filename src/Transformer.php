@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Monkeyslegion\PolySyntax;
 
 use Monkeyslegion\PolySyntax\Contract\DriverInterface;
+use Monkeyslegion\PolySyntax\Contract\StreamingDecoderInterface;
 use Monkeyslegion\PolySyntax\Enum\Syntax;
 use Monkeyslegion\PolySyntax\Exception\DecodeException;
 use Monkeyslegion\PolySyntax\Exception\EncodeException;
 use Monkeyslegion\PolySyntax\Exception\UnsupportedSyntaxException;
+use Monkeyslegion\PolySyntax\Stream\CsvStreamingDecoder;
+use Monkeyslegion\PolySyntax\Stream\JsonStreamingDecoder;
 
 /**
  * Facade for format transformation orchestration.
@@ -220,6 +223,61 @@ final class Transformer
         }
 
         return $this->encode($data, $chain[$count - 1]);
+    }
+
+    /**
+     * Create a streaming decoder for the given format.
+     *
+     * Built-in streaming decoders:
+     * - CSV (`Syntax::CSV`) → `CsvStreamingDecoder`
+     * - JSON (`Syntax::JSON`) → `JsonStreamingDecoder`
+     *
+     * @param  Syntax|string $syntax The format to stream-decode.
+     * @return StreamingDecoderInterface
+     *
+     * @throws UnsupportedSyntaxException When no streaming decoder is available.
+     */
+    public function createStreamDecoder(Syntax|string $syntax): StreamingDecoderInterface
+    {
+        $key = $this->resolveKey($syntax);
+
+        return match ($key) {
+            'csv'  => new CsvStreamingDecoder(),
+            'json' => new JsonStreamingDecoder(),
+            default => throw new UnsupportedSyntaxException($syntax),
+        };
+    }
+
+    /**
+     * Stream-decode data by feeding chunks and draining items.
+     *
+     * This is a convenience wrapper around `createStreamDecoder()` that
+     * feeds chunks through an iterator and yields decoded items.
+     *
+     * @param  iterable<string> $chunks  An iterable of data chunks.
+     * @param  Syntax|string    $syntax  The format to decode.
+     * @return iterable<mixed>           Yields decoded items one at a time.
+     *
+     * @throws UnsupportedSyntaxException When no streaming decoder is available.
+     * @throws DecodeException            When malformed data is encountered.
+     */
+    public function decodeStream(iterable $chunks, Syntax|string $syntax): iterable
+    {
+        $decoder = $this->createStreamDecoder($syntax);
+
+        foreach ($chunks as $chunk) {
+            $decoder->feed($chunk);
+
+            while (($item = $decoder->next()) !== null) {
+                yield $item;
+            }
+        }
+
+        $decoder->end();
+
+        while (($item = $decoder->next()) !== null) {
+            yield $item;
+        }
     }
 
     /**

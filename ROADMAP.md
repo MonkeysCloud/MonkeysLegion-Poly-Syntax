@@ -112,10 +112,10 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
   - [x] Memory profiling (peak memory, delta, efficiency ratio) in benchmark suite
   - [x] Optimize hot paths in frequently used drivers (JSON, CSV)
 
-- [ ] **Streaming & Large File Support**
-  - [ ] `StreamingDecoder` interface for line-by-line / chunk-by-chunk processing
-  - [ ] CSV streaming for large datasets
-  - [ ] JSON streaming via `json_decode($chunk, true)` with state machine
+- [x] **Streaming & Large File Support**
+  - [x] `StreamingDecoderInterface` for incremental feed-and-drain processing
+  - [x] `CsvStreamingDecoder` — multi-line quoted field support, line-by-line streaming
+  - [x] `JsonStreamingDecoder` — bracket-depth state machine for element-by-element streaming
 
 - [x] **Edge Case Hardening**
   - [x] Deeply nested structures (configurable depth limits)
@@ -124,8 +124,7 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
   - [x] Empty and null input handling
 
 - [ ] **Framework Integration**
-  - [ ] Laravel `Str` macro / facade
-  - [ ] Symfony serializer tag
+  - [ ] MonkneysLegion Provider for framwork project
   - [ ] Standalone CLI tool (`poly-syntax convert file.json file.yaml`)
 
 ---
