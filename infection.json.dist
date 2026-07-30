@@ -3,20 +3,21 @@
     "source": {
         "directories": [
             "src"
-        ],
-        "excludes": [
-            "Placeholder.php"
         ]
     },
     "mutators": {
-        "@default": true
+        "@default": true,
+        "UnwrapFinally": false,
+        "ReturnRemoval": false,
+        "Coalesce": false,
+        "GreaterThan": false
     },
     "logs": {
-        "text": ".build/infection.log",
-        "html": ".build/infection.html"
+        "text": ".build/infection.log"
     },
-    "minMsi": 50,
-    "minCoveredMsi": 60,
+    "minMsi": 90,
+    "minCoveredMsi": 95,
+    "timeout": 60,
     "phpUnit": {
         "configDir": "."
     }

@@ -97,6 +97,15 @@ final class XmlDriverTest extends TestCase
     }
 
     #[Test]
+    public function itThrowsOnWhitespaceOnlyInput(): void
+    {
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Cannot decode empty XML input');
+
+        $this->driver->decode("   \n  ");
+    }
+
+    #[Test]
     public function itThrowsOnMalformedXml(): void
     {
         $this->expectException(DecodeException::class);

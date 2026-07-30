@@ -59,7 +59,7 @@ This project and everyone participating in it is governed by the [Code of Conduc
 
 ### Quick validation
 
-Run all quality checks with a single command:
+Run fast quality checks with:
 
 ```bash
 composer check
@@ -70,6 +70,16 @@ This runs:
 1. `composer cs-check` — PSR-12 code style
 2. `composer analyse` — PHPStan Level 9 static analysis
 3. `composer test` — PHPUnit test suite
+
+For the **full quality report** including mutation testing:
+
+```bash
+composer quality-report
+```
+
+This adds:
+
+1. `composer infection` — Mutation testing (MSI ≥ 90%, Covered MSI ≥ 95%)
 
 ---
 
@@ -100,7 +110,7 @@ This runs:
 
 ## Architecture Overview
 
-```
+```txt
 [ Input Payload ]  ──▶ ( Input Driver: decode() )  ──▶ [ Native PHP Array ]
                                                               │
 [ Output Payload ] ◀── ( Output Driver: encode() ) ◀── [ Native PHP Array ]

@@ -334,4 +334,88 @@ final class CsvDriverTest extends TestCase
 
         new CsvDriver(enclosure: '""');
     }
+
+    #[Test]
+    public function itAcceptsMultiByteDelimiter(): void
+    {
+        // Multi-byte chars have strlen > 1 but mb_strlen === 1.
+        // mb_strlen correctly accepts them — strlen would reject.
+        // We test constructor creation to kill the MBString mutation.
+        $driver = new CsvDriver(delimiter: '★');
+
+        self::assertSame(Syntax::CSV, $driver->supportedSyntax());
+    }
+
+    #[Test]
+    public function itAcceptsMultiByteEnclosure(): void
+    {
+        // Same as above for enclosure validation.
+        $driver = new CsvDriver(enclosure: '★');
+
+        self::assertSame(Syntax::CSV, $driver->supportedSyntax());
+    }
+
+    #[Test]
+    public function itReturnsAllRowsWithDefaultMaxRows(): void
+    {
+        $csv = "name\nAlice\nBob\nCharlie";
+
+        $result = $this->driver->decode($csv);
+
+        self::assertCount(3, $result);
+    }
+
+    #[Test]
+    public function itHasDefaultMaxRowsOfZero(): void
+    {
+        $reflection = new \ReflectionClass($this->driver);
+
+        self::assertSame(0, $reflection->getProperty('maxRows')->getValue($this->driver));
+    }
+
+    #[Test]
+    public function itRespectsMaxRowsBoundary(): void
+    {
+        $limited = new CsvDriver(maxRows: 2);
+
+        $csv = "name\nA\nB\nC";
+
+        $result = $limited->decode($csv);
+
+        self::assertCount(2, $result);
+    }
+
+    #[Test]
+    public function itRespectsMaxRowsWithContentCheck(): void
+    {
+        $limited = new CsvDriver(maxRows: 1);
+
+        $csv = "name\nAlice\nBob\nCharlie";
+
+        $result = $limited->decode($csv);
+
+        self::assertCount(1, $result);
+        self::assertSame('Alice', $result[0]['name']);
+    }
+
+    // ─── Mutation Coverage ───────────────────────────────────────────────
+
+    #[Test]
+    public function itEncodesWithoutHeadersNotWritingHeaderRow(): void
+    {
+        $noHeaders = new CsvDriver(hasHeaders: false);
+
+        $data = [
+            ['John', '30'],
+            ['Alice', '25'],
+        ];
+
+        $result = $noHeaders->encode($data);
+        $lines = \array_filter(\explode("\n", $result));
+
+        // Should have exactly 2 data lines, no header line
+        self::assertCount(2, $lines);
+        self::assertStringContainsString('John,30', $lines[0]);
+        self::assertStringContainsString('Alice,25', $lines[1]);
+    }
 }

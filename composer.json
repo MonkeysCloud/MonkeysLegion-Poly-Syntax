@@ -64,7 +64,7 @@
         "test": "phpunit --colors=always",
         "test:coverage": "XDEBUG_MODE=coverage phpunit --colors=always --coverage-html .build/coverage --coverage-text",
         "test:coverage:ci": "XDEBUG_MODE=coverage phpunit --colors=always --coverage-text --coverage-html .build/coverage",
-        "infection": "infection --min-msi=70 --min-covered-msi=80 --threads=4 --ansi",
+        "infection": "infection --threads=4 --ansi",
         "analyse": "phpstan analyse --ansi src tests",
         "cs-check": "phpcs --standard=PSR12 --colors src tests",
         "cs-fix": "phpcbf --standard=PSR12 --colors src tests",
@@ -72,6 +72,12 @@
             "@cs-check",
             "@analyse",
             "@test"
+        ],
+        "quality-report": [
+            "@cs-check",
+            "@analyse",
+            "@test",
+            "@infection"
         ],
         "pre-commit": [
             "@cs-fix",

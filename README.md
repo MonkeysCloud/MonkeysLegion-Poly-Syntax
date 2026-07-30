@@ -4,6 +4,7 @@
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/releases/8.4/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Packagist](https://img.shields.io/badge/Packagist-available%20soon-28a745?logo=packagist&logoColor=white)](https://packagist.org/packages/monkeyscloud/monkeyslegion-poly-syntax)
 [![CS: PSR-12](https://img.shields.io/badge/Code%20Style-PSR--12-ff69b4)](https://www.php-fig.org/psr/psr-12/)
 [![PHPStan Level 9](https://img.shields.io/badge/PHPStan-Level%209-brightgreen)](https://phpstan.org/)
 [![Coverage](https://img.shields.io/badge/Coverage-93.7%25-success)](https://github.com/monkeyscloud/monkeyslegion-poly-syntax)
@@ -90,7 +91,7 @@ $xml = $transformer->transform(
 ## 📋 Supported Formats
 
 | Format | Status | Driver | Backend |
-|--------|--------|--------|---------|
+| -------- | -------- | -------- | --------- |
 | **JSON** | ✅ Built-in | `JsonDriver` | `json_decode` / `json_encode` (native) |
 | **XML** | ✅ Built-in | `XmlDriver` | `SimpleXML` + `DOMDocument` (native) |
 | **CSV** | ✅ Built-in | `CsvDriver` | `fgetcsv` / `fputcsv` (native) |
@@ -127,7 +128,7 @@ The drivers auto-detect the best available backend at runtime.
 ### Core Components
 
 | Component | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `Transformer` | Facade for format routing and transformation orchestration |
 | `DriverInterface` | Contract every driver must implement (`decode()` + `encode()`) |
 | `Syntax` enum | Strongly-typed format identifiers |
@@ -280,6 +281,7 @@ $driver = new XmlDriver(
 ```
 
 **Default libxml options:**
+
 - `LIBXML_NONET` — Disables network access (XXE protection)
 - `LIBXML_NSCLEAN` — Strips redundant namespace declarations
 - `LIBXML_PARSEHUGE` — Allows deep nesting and large text nodes
@@ -760,24 +762,30 @@ git clone https://github.com/monkeyscloud/monkeyslegion-poly-syntax.git
 cd monkeyslegion-poly-syntax
 composer install
 
-# Run all quality checks
+# Run all fast quality checks (cs + phpstan + test)
 composer check
 
+# Run full quality report including mutation testing
+composer quality-report
+
 # Or individual checks
-composer test         # PHPUnit (112+ tests)
-composer analyse      # PHPStan Level 9
-composer cs-check     # PSR-12 code style
-composer infection    # Mutation testing (MSI ≥ 50%)
+composer test              # PHPUnit (217+ tests)
+composer analyse           # PHPStan Level 9
+composer cs-check          # PSR-12 code style
+composer infection         # Mutation testing (MSI ≥ 90%)
+composer test:coverage     # Coverage report
 ```
 
 ### Quality Gates
 
 | Gate | Requirement |
-|------|-------------|
+| ------ | ------------- |
 | **PHPStan** | Level 9, zero errors |
 | **PHPCS** | PSR-12, zero errors |
+| **PHPUnit** | 217+ tests, all pass |
+| **Mutation Score (MSI)** | ≥ 90% |
+| **Covered Mutation Score** | ≥ 95% |
 | **Test coverage** | ≥ 90% lines |
-| **Mutation score** | ≥ 50% MSI |
 
 ---
 

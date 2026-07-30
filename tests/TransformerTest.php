@@ -54,6 +54,19 @@ final class TransformerTest extends TestCase
     }
 
     #[Test]
+    public function itReturnsSequentiallyIndexedSyntaxes(): void
+    {
+        $this->transformer->registerDriver($this->createJsonDriver());
+        $this->transformer->registerDriver($this->createXmlDriver());
+
+        $supported = $this->transformer->supportedSyntaxes();
+
+        self::assertArrayHasKey(0, $supported);
+        self::assertArrayHasKey(1, $supported);
+        self::assertCount(2, $supported);
+    }
+
+    #[Test]
     public function itReplacesADriverWhenRegisteringDuplicateSyntax(): void
     {
         $driverA = $this->createJsonDriver();

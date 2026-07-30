@@ -245,4 +245,15 @@ final class JsonDriverTest extends TestCase
         $result = $driver->encode(['key' => 'value']);
         self::assertJson($result);
     }
+
+    #[Test]
+    public function itHasDefaultDepthOf512(): void
+    {
+        $driver = new JsonDriver();
+
+        $reflection = new \ReflectionClass($driver);
+        $depthProperty = $reflection->getProperty('depth');
+
+        self::assertSame(512, $depthProperty->getValue($driver));
+    }
 }
