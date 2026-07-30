@@ -26,7 +26,8 @@ final class TokenEstimate
         public readonly int $bytes,
         public readonly int $estimatedTokens,
         public readonly float $tokensPerByte,
-    ) {}
+    ) {
+    }
 
     /**
      * Human-readable format label.

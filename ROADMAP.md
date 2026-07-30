@@ -109,8 +109,8 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
 
 - [ ] **Performance**
   - [x] Benchmark suite comparing drivers against common payloads (1KB–1MB)
+  - [x] Memory profiling (peak memory, delta, efficiency ratio) in benchmark suite
   - [ ] Optimize hot paths in frequently used drivers (JSON, CSV)
-  - [ ] Memory profiling for large payload scenarios
 
 - [ ] **Streaming & Large File Support**
   - [ ] `StreamingDecoder` interface for line-by-line / chunk-by-chunk processing

@@ -24,7 +24,8 @@ final class FormatComparison
         public readonly int $savingsTokens,
         public readonly float $savingsPercent,
         public readonly float $reductionFactor,
-    ) {}
+    ) {
+    }
 
     /**
      * Whether switching to the target format saves tokens.

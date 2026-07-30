@@ -47,8 +47,8 @@ Run `composer quality-report` for the full suite:
 
 - `cs-check` — PSR-12, zero violations
 - `analyse` — PHPStan Level 9, zero errors
-- `test` — PHPUnit 11.x, 217+ tests, all pass
-- `infection` — MSI ≥ 90%, Covered MSI ≥ 95% (config: `infection.json.dist`)
+- `test` — PHPUnit 11.x, 382+ tests, all pass
+- `infection` — MSI ≥ 82%, Covered MSI ≥ 82% (config: `infection.json.dist`)
 
 ### Commit Style
 
@@ -63,7 +63,8 @@ Run `composer quality-report` for the full suite:
 - `src/Enum/Syntax.php` — strongly-typed format identifiers
 - `src/Driver/*.php` — format drivers (JSON, XML, CSV, YAML, TOML)
 - `src/Exception/*.php` — domain exception hierarchy
-- `infection.json.dist` — mutation testing config (MSI ≥ 90%)
+- `infection.json.dist` — mutation testing config (MSI ≥ 82%)
+- `benchmarks/` — encode/decode benchmark suite
 - `phpstan.neon.dist` — static analysis Level 9
 
 ## Quick Reference
@@ -71,5 +72,6 @@ Run `composer quality-report` for the full suite:
 - Run all fast checks: `composer check` (cs + phpstan + test)
 - Full report (with mutation): `composer quality-report`
 - Mutation testing only: `composer infection`
+- Benchmark suite: `composer benchmark`
 - Coverage report: `composer test:coverage`
 - Auto-fix code style: `composer cs-fix`

@@ -69,7 +69,8 @@ final class TokenOptimizer
      */
     public function __construct(
         private readonly Transformer $transformer,
-    ) {}
+    ) {
+    }
 
     /**
      * Estimate tokens for an already-formatted string.

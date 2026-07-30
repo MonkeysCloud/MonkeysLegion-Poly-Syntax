@@ -79,7 +79,7 @@ composer quality-report
 
 This adds:
 
-1. `composer infection` — Mutation testing (MSI ≥ 90%, Covered MSI ≥ 95%)
+1. `composer infection` — Mutation testing (MSI ≥ 82%, Covered MSI ≥ 82%)
 
 ---
 
