@@ -102,13 +102,13 @@ final class CsvDriver implements DriverInterface
         $this->maxRows = $maxRows;
     }
 
-    #[\Override]
+    #[Override]
     public function supportedSyntax(): Syntax
     {
         return Syntax::CSV;
     }
 
-    #[\Override]
+    #[Override]
     public function decode(string $input): array
     {
         $trimmed = \trim($input);
@@ -129,9 +129,13 @@ final class CsvDriver implements DriverInterface
             \fwrite($stream, $trimmed);
             \rewind($stream);
 
-            // Read all rows
-            while (($row = $this->readCsvRow($stream)) !== null) {
-                $rows[] = $row;
+            while (($row = \fgetcsv($stream, 0, $this->delimiter, $this->enclosure, $this->escape)) !== false) {
+                /** @var list<string> $row */
+                if ($row === [null]) {
+                    continue;
+                }
+
+                $rows[] = \array_map(\strval(...), $row);
             }
         } finally {
             \fclose($stream);
@@ -165,7 +169,7 @@ final class CsvDriver implements DriverInterface
         );
     }
 
-    #[\Override]
+    #[Override]
     public function encode(array $data): string
     {
         if ($data === []) {
@@ -192,7 +196,7 @@ final class CsvDriver implements DriverInterface
             $headers = \array_keys($first);
 
             if ($headers !== [] && $this->hasHeaders) {
-                $this->writeCsvRow($stream, $headers);
+                \fputcsv($stream, $headers, $this->delimiter, $this->enclosure, $this->escape);
             }
 
             // Write data rows
@@ -208,7 +212,7 @@ final class CsvDriver implements DriverInterface
                     $values[] = $this->formatField($row[$key] ?? '');
                 }
 
-                $this->writeCsvRow($stream, $values);
+                \fputcsv($stream, $values, $this->delimiter, $this->enclosure, $this->escape);
             }
 
             \rewind($stream);
@@ -218,7 +222,6 @@ final class CsvDriver implements DriverInterface
                 throw new EncodeException('Failed to read CSV output from stream');
             }
 
-            // Trim trailing newline added by fputcsv
             return \rtrim($result, "\r\n");
         } finally {
             \fclose($stream);
@@ -226,34 +229,6 @@ final class CsvDriver implements DriverInterface
     }
 
     // ─── Private Helpers ───────────────────────────────────────────
-
-    /**
-     * Read a single CSV row from the stream.
-     *
-     * @param  resource $stream The stream resource.
-     * @return list<string>|null The row fields, or null at EOF/error.
-     */
-    private function readCsvRow($stream): ?array
-    {
-        $row = \fgetcsv($stream, 0, $this->delimiter, $this->enclosure, $this->escape);
-
-        if (!\is_array($row)) {
-            return null;
-        }
-
-        return \array_map(\strval(...), $row);
-    }
-
-    /**
-     * Write a CSV row to the stream.
-     *
-     * @param  resource    $stream The stream resource.
-     * @param  list<string> $fields The fields to write.
-     */
-    private function writeCsvRow($stream, array $fields): void
-    {
-        \fputcsv($stream, $fields, $this->delimiter, $this->enclosure, $this->escape);
-    }
 
     /**
      * Apply headers to a row, aligning fields by position.
