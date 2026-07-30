@@ -111,6 +111,10 @@ final class CsvDriver implements DriverInterface
     #[\Override]
     public function decode(string $input): array
     {
+        if ($input === '') {
+            return [];
+        }
+
         $trimmed = \trim($input);
 
         if ($trimmed === '') {
@@ -153,10 +157,9 @@ final class CsvDriver implements DriverInterface
             return $rows;
         }
 
-        // Shift off the header row if it was auto-detected
-        $dataRows = $this->headers !== null || !$this->hasHeaders
-            ? $rows
-            : \array_slice($rows, 1);
+        // Determine starting data offset (skip header row if auto-detected)
+        $offset = $this->headers !== null || !$this->hasHeaders ? 0 : 1;
+        $dataRows = \array_slice($rows, $offset);
 
         // Apply maxRows limit to data rows (after header processing)
         if ($this->maxRows > 0 && \count($dataRows) > $this->maxRows) {
@@ -264,12 +267,9 @@ final class CsvDriver implements DriverInterface
             return '';
         }
 
-        if (\is_float($value) || \is_int($value)) {
+        // int, float, and string — let PHP cast natively
+        if (\is_string($value) || \is_int($value) || \is_float($value)) {
             return (string) $value;
-        }
-
-        if (\is_string($value)) {
-            return $value;
         }
 
         return '';

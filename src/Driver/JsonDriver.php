@@ -26,42 +26,31 @@ use Monkeyslegion\PolySyntax\Exception\EncodeException;
  */
 final class JsonDriver implements DriverInterface
 {
-    /**
-     * Bitmask of flags passed to `json_encode`.
-     */
+    private const DEFAULT_ENCODE_FLAGS = \JSON_THROW_ON_ERROR
+        | \JSON_UNESCAPED_UNICODE
+        | \JSON_UNESCAPED_SLASHES
+        | \JSON_INVALID_UTF8_IGNORE;
+
+    private const DEFAULT_DECODE_FLAGS = \JSON_THROW_ON_ERROR
+        | \JSON_INVALID_UTF8_IGNORE;
+
     private readonly int $encodeFlags;
 
-    /**
-     * Bitmask of flags passed to `json_decode`.
-     */
     private readonly int $decodeFlags;
 
-    /**
-     * Maximum recursion depth for `json_decode`.
-     */
     private readonly int $depth;
 
     /**
-     * @param  int|null $encodeFlags Optional override for encode flags.
-     * @param  int|null $decodeFlags Optional override for decode flags.
-     * @param  int      $depth       Maximum nesting depth (default 512).
+     * @param  int      $depth       Maximum nesting depth (default 512, minimum 1).
      */
     public function __construct(
-        ?int $encodeFlags = null,
-        ?int $decodeFlags = null,
+        int $encodeFlags = self::DEFAULT_ENCODE_FLAGS,
+        int $decodeFlags = self::DEFAULT_DECODE_FLAGS,
         int $depth = 512,
     ) {
-        $this->encodeFlags = $encodeFlags ?? (
-            \JSON_THROW_ON_ERROR
-            | \JSON_UNESCAPED_UNICODE
-            | \JSON_UNESCAPED_SLASHES
-            | \JSON_INVALID_UTF8_IGNORE
-        );
-        $this->decodeFlags = $decodeFlags ?? (
-            \JSON_THROW_ON_ERROR
-            | \JSON_INVALID_UTF8_IGNORE
-        );
-        $this->depth = \max(1, $depth);
+        $this->encodeFlags = $encodeFlags;
+        $this->decodeFlags = $decodeFlags;
+        $this->depth = $depth > 0 ? $depth : 1;
     }
 
     #[\Override]
