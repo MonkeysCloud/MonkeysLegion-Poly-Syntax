@@ -1189,9 +1189,9 @@ final class TomlDriver implements DriverInterface
     /**
      * Encode a single key-value pair as a TOML line.
      */
-    private function encodeKeyValue(string $key, mixed $value): string
+    private function encodeKeyValue(string|int $key, mixed $value): string
     {
-        return $this->encodeKey($key) . ' = ' . $this->encodeValue($value);
+        return $this->encodeKey((string) $key) . ' = ' . $this->encodeValue($value);
     }
 
     /**

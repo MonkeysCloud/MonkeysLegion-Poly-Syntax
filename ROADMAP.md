@@ -108,7 +108,7 @@ The package leverages an **Adapter / Driver Pattern** with an intermediate inter
 > Focus: Benchmarking, edge cases, and framework integration.
 
 - [ ] **Performance**
-  - [ ] Benchmark suite comparing drivers against common payloads (1KB–10MB)
+  - [x] Benchmark suite comparing drivers against common payloads (1KB–1MB)
   - [ ] Optimize hot paths in frequently used drivers (JSON, CSV)
   - [ ] Memory profiling for large payload scenarios
 

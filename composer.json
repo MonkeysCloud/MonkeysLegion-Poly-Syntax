@@ -50,7 +50,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Monkeyslegion\\PolySyntax\\Tests\\": "tests/"
+            "Monkeyslegion\\PolySyntax\\Tests\\": "tests/",
+            "Monkeyslegion\\PolySyntax\\Benchmarks\\": "benchmarks/"
         }
     },
     "minimum-stability": "stable",
@@ -79,6 +80,7 @@
             "@test",
             "@infection"
         ],
+        "benchmark": "php benchmarks/run.php",
         "pre-commit": [
             "@cs-fix",
             "@cs-check",
