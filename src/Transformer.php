@@ -12,6 +12,7 @@ use Monkeyslegion\PolySyntax\Exception\EncodeException;
 use Monkeyslegion\PolySyntax\Exception\UnsupportedSyntaxException;
 use Monkeyslegion\PolySyntax\Stream\CsvStreamingDecoder;
 use Monkeyslegion\PolySyntax\Stream\JsonStreamingDecoder;
+use Monkeyslegion\PolySyntax\Stream\TomlStreamingDecoder;
 
 /**
  * Facade for format transformation orchestration.
@@ -244,6 +245,7 @@ final class Transformer
         return match ($key) {
             'csv'  => new CsvStreamingDecoder(),
             'json' => new JsonStreamingDecoder(),
+            'toml' => new TomlStreamingDecoder(),
             default => throw new UnsupportedSyntaxException($syntax),
         };
     }
